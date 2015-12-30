@@ -1,5 +1,7 @@
 # Usage
-python main.py cnf_file_name problem_type f_value output_file_name max_time
+** python main.py cnf_file_name problem_type f_value output_file_name max_time **
+
+This command will solve the problem in cnf_file_name with given values for f and maximum time and write the results to output_file_name
 
 List of possible problem types:
  * lbo: obtain a lower bound of the model count, using an exploration strategy that is fast, mostly reliable, but have no guarantees
