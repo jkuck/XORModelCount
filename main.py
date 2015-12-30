@@ -11,7 +11,7 @@ from SAT import SAT
 # param4: max time
 if __name__ == '__main__':
     if len(sys.argv) < 6:
-        print("Incorrect parameters. Usage: instance_name, problem_type, f_value, output_file_name, max_time(optional)")
+        print("Incorrect parameters. Usage: instance_name problem_type f_value output_file_name max_time(optional)")
         exit(1)
 
     problem_name = sys.argv[1]
