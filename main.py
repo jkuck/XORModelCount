@@ -41,10 +41,10 @@ if __name__ == '__main__':
     ofstream.write("n = " + str(problem.n) + ", f = " + str(f) + " \n")
     ofstream.write(type + "\n")
     if type == "upper bound enumerate":
-        bound, m_star, time = counter.upperBoundEnumerate(f=f, min_confidence=min_confidence, min_m=0)
+        bound, m_star, time = counter.upperBoundEnumerate(f=f, min_confidence=min_confidence, min_m=0, max_time=max_time)
         ofstream.write("Log bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(time))
     elif type == "upper bound optimal exploration":
-        bound, m_star, time, efficiency = counter.upperBound(f=f, min_confidence=min_confidence)
+        bound, m_star, time, efficiency = counter.upperBound(f=f, min_confidence=min_confidence, max_time=max_time)
         ofstream.write("Log bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(time) +
                        ", efficiency = " + str(efficiency))
     elif type == "lower bound enumerate":

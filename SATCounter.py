@@ -256,11 +256,12 @@ class SATCounter:
             print("Complete! best log bound is " + str(best_bound) + " @ " + str(m_star))
         return best_bound, m_star
 
-    def upperBound(self, f, min_confidence=0.9, bold=True):
+    def upperBound(self, f, min_confidence=0.9, bold=True, max_time=600):
         """ Get a upper bound for the SAT problem with specified constraint density and minimum confidence
         Returns a tuple of the best bound obtained, the best m to give us that bound, time usage,
         percentage of computational resources used on optimal m. If no results are obtained returns -1"""
 
+        timer = Timer(max_time)
         start_time = time.time()
 
         # Define some notation shorthands
@@ -366,7 +367,11 @@ class SATCounter:
 
             # Perform a trial on that m
             self.sat.parityConstraints(m_star, f)
-            outcome = self.sat.solve()
+            outcome = self.sat.solve(timer.time())
+            if timer.timeout:
+                print("Timeout!")
+                return float('nan'), -1, max_time, 0
+
             if outcome is True:
                 true_count[m_star] += 1
                 trial_count[m_star] += 1
@@ -400,7 +405,7 @@ class SATCounter:
             print("Time usage: " + str(end_time - start_time) + "s")
         return float(bf.log(best_bound)), m_star, end_time - start_time, float(T) / total_run
 
-    def upperBoundEnumerate(self, f, min_confidence=0.9, min_m=0, max_m=-1):
+    def upperBoundEnumerate(self, f, min_confidence=0.9, min_m=0, max_m=-1, max_time=600):
         """ Get a log upper bound for the SAT problem with specified constraint density and minimum confidence
         This does a brute force search on all possible m, each possible m is investigated for adequate number of times
         Returns the best bound, m to give us that bound, and time consumed on that particular m """
@@ -415,13 +420,16 @@ class SATCounter:
 
         # Iterate from small m to large, smaller m gives better bounds
         for m in range(min_m, max_m):
+            timer = Timer(max_time)
+            time_out = False
+
             print("Inspecting m = " + str(m))
             start_time = time.time()
             true_count = 0              # The number of trials m is satisfiable
             false_count = 0             # The number of trials m is unsatisfiable
             for trial in range(0, T):
                 self.sat.parityConstraints(m, f)
-                outcome = self.sat.solve()
+                outcome = self.sat.solve(timer.time())
                 if outcome is True:
                     true_count += 1
                     print("1"),
@@ -430,11 +438,16 @@ class SATCounter:
                     print("0"),
                 else:
                     print("E"),
+                    time_out = True
+                    break
+                if timer.timeout():
+                    time_out = True
+                    break
 
             end_time = time.time()
             print(" ")
             print(str(true_count) + " out of " + str(T) + " evaluated to be SAT")
-            if true_count < false_count:
+            if true_count < false_count and not time_out:
                 actual_bound = self.upperBoundExpected(m, f)
                 print("Solved @ m = " + str(m) + " with upper bound " + str(float(bf.log(actual_bound))))
                 return float(bf.log(actual_bound)), m, end_time - start_time
