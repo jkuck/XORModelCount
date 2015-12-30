@@ -279,7 +279,7 @@ class SATCounter:
                 print("Searching for the maximum reasonable m")
             for m in range(0, n, 5):
                 self.sat.parityConstraints(m, f)
-                outcome = self.sat.solve()
+                outcome = self.sat.solve(timer.time())
                 if self.verbose:
                     print("[m=" + str(m) + ", " + str(outcome) + "] "),
                     if outcome is not True:
@@ -289,6 +289,10 @@ class SATCounter:
                 if outcome is False:
                     max_m_global = m + 5
                     break
+                if timer.timeout():
+                    print("Timeout!")
+                    return float('nan'), -1, max_time, 0
+
         if self.verbose:
             print("Starting the search maximum m of " + str(max_m_global))
             print("Computing expected bound if trial successful")
@@ -368,7 +372,7 @@ class SATCounter:
             # Perform a trial on that m
             self.sat.parityConstraints(m_star, f)
             outcome = self.sat.solve(timer.time())
-            if timer.timeout:
+            if timer.timeout():
                 print("Timeout!")
                 return float('nan'), -1, max_time, 0
 
