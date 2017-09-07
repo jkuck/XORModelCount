@@ -1,9 +1,8 @@
-__author__ = 'shengjia'
-
-from util import *
+import sys
 import time
 from scipy.special import binom as binom
 from timer import Timer
+from util import *
 
 
 class SATCounter:

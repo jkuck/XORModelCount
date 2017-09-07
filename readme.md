@@ -1,0 +1,2 @@
+To run the code you will need to install [GMP](https://gmplib.org/), [MPFR](http://www.mpfr.org/mpfr-current/mpfr.html),
+and [bigfloat](http://pythonhosted.org/bigfloat/#installation) for high precision computations. 

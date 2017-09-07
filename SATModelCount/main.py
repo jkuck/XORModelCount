@@ -1,58 +1,51 @@
-__author__ = 'shengjia'
+import os
+from sat_counter import SATCounter
+from sat import SAT
+import argparse
 
-from os import sys
-from SATCounter import *
-from SAT import SAT
+parser = argparse.ArgumentParser()
+parser.add_argument('--input', type=str, default='examples/wff.3.100.150.cnf')
+parser.add_argument('--type', type=str, default='lbo')
+parser.add_argument('--f', type=float, default=0.1)
+parser.add_argument('--eps', type=float, default=0.1)
+parser.add_argument('--max_time', type=int, default=3600)
+parser.add_argument('--result_path', type=str, default='result/')
+parser.add_argument('--confidence', type=float, default=0.95)
+args = parser.parse_args()
 
-# Usage
-# param1: name of the input problem file
-# param2: type of test we want: lbo, lbe, ubo, ube
-# param3: f if WISH, eps if ApproxMC
-# param4: max time
-if __name__ == '__main__':
-    if len(sys.argv) < 6:
-        print("Incorrect parameters. Usage: instance_name problem_type f_value output_file_name max_time(optional)")
-        exit(1)
+problem = SAT(args.input, verbose=False)
+counter = SATCounter(problem)
 
-    problem_name = sys.argv[1]
-    problem = SAT(problem_name, verbose=False)
-    counter = SATCounter(problem)
+if not os.path.isdir(args.result_path):
+    os.mkdir(args.result_path)
+result_file = os.path.join(args.result_path, "%s_%s.txt" % (args.input.split('/')[-1], args.type))
+if os.path.isfile(result_file):
+    os.remove(result_file)
 
-    ofstream = open(sys.argv[4], "w")
+logger = open(result_file, "w")
+logger.write("Problem name: " + args.input + "\n")
+logger.write("n = " + str(problem.n) + ", f = " + args.f + " \n")
+logger.write("s\n" % args.type)
+if args.type == 'ube':
+    bound, m_star, time = counter.upperBoundEnumerate(f=args.f, min_confidence=args.min_confidence,
+                                                      min_m=0, max_time=args.max_time)
+    logger.write("Log bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(time))
+elif args.type == 'ubo':
+    bound, m_star, time, efficiency = counter.upperBound(f=args.f, min_confidence=args.min_confidence,
+                                                         max_time=args.max_time)
+    logger.write("Log bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(time) +
+                   ", efficiency = " + str(efficiency))
+elif args.type == 'lbe':
+    bound, m_star = counter.lowerBoundEnumerate(f=args.f, min_confidence=args.min_confidence, max_time=args.max_time,
+                                                min_m=0, max_m=problem.n)
+    logger.write("Log Bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(args.max_time))
+elif args.type == 'lbo':
+    bound, m_star, time, efficiency = counter.lowerBound(f=args.f, min_confidence=args.min_confidence,
+                                                         max_time=args.max_time)
+    logger.write("Log Bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(time) +
+                   ", efficiency = " + str(efficiency))
+else:
+    print("Unrecognized type parameter, try again")
+    exit(1)
+logger.close()
 
-    # Run parameters
-    if sys.argv[2] == "lbo":
-        type = "lower bound optimal exploration"
-    elif sys.argv[2] == "lbe":
-        type = "lower bound enumerate"
-    elif sys.argv[2] == "ubo":
-        type = "upper bound optimal exploration"
-    elif sys.argv[2] == "ube":
-        type = "upper bound enumerate"
-    else:
-        print("Unrecognized type parameter, try again")
-        exit(1)
-
-    f = float(sys.argv[3])
-    max_time = float(sys.argv[5])
-    min_confidence = 0.95
-
-    ofstream.write("Problem name: " + sys.argv[1] + "\n")
-    ofstream.write("n = " + str(problem.n) + ", f = " + str(f) + " \n")
-    ofstream.write(type + "\n")
-    if type == "upper bound enumerate":
-        bound, m_star, time = counter.upperBoundEnumerate(f=f, min_confidence=min_confidence, min_m=0, max_time=max_time)
-        ofstream.write("Log bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(time))
-    elif type == "upper bound optimal exploration":
-        bound, m_star, time, efficiency = counter.upperBound(f=f, min_confidence=min_confidence, max_time=max_time)
-        ofstream.write("Log bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(time) +
-                       ", efficiency = " + str(efficiency))
-    elif type == "lower bound enumerate":
-        bound, m_star = counter.lowerBoundEnumerate(f=f, min_confidence=min_confidence, max_time=max_time,
-                                                    min_m=0, max_m=problem.n)
-        ofstream.write("Log Bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(max_time))
-    elif type == "lower bound optimal exploration":
-        bound, m_star, time, efficiency = counter.lowerBound(f=f, min_confidence=min_confidence, max_time=max_time)
-        ofstream.write("Log Bound: " + str(bound) + " @ m = " + str(m_star) + ", time = " + str(time) +
-                       ", efficiency = " + str(efficiency))
-    ofstream.close()

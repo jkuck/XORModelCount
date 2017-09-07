@@ -5,12 +5,14 @@ import random
 import time
 import os
 
+
 # Runs a system command without timeout
 def run_command(command):
     p = subprocess.Popen(command,
                          stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT)
     return [item.strip() for item in iter(p.stdout.readline, b'')]
+
 
 # Class that execute a system command with timeout
 class Command(object):
