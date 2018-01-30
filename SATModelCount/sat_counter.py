@@ -3,17 +3,17 @@ import time
 from scipy.special import binom as binom
 from timer import Timer
 from util import *
-
+import numpy as np
 
 class SATCounter:
-
-    def __init__(self, sat_problem, verbose=True):
+    def __init__(self, sat_problem, verbose=True, use_regular=False):
         """ Each SATCounter solves a specific sat problem that must be specified at creation """
         self.sat = sat_problem
         self.verbose = verbose
         self.binom = BigBinom(sat_problem.n)
+        self.use_regular = use_regular
 
-    def lowerBound(self, f, min_confidence=0.9, max_time=600, best_slack=0.1):
+    def lower_bound(self, f, min_confidence=0.9, max_time=600, best_slack=0.1):
         """ Get a log lower bound for the SAT problem with specified constraint density and minimum confidence
             Set the best_slack if we are satisfied with a solution that is 1 / (1 + best_slack) smaller than best
             try, and we wish the algorithm returns early before max_time
@@ -32,20 +32,12 @@ class SATCounter:
         big_zero = BigFloat(0.0)
 
         # Define required variables
-        trial_count = []            # The number of trials performed on m
-        true_count = []             # The number of trials m is satisfiable
-        false_count = []            # The number of trials m is unsatisfiable
-        incentive = []              # The incentive to perform trial on m in the next step
-        trial_time = []             # The amount of time spent on the investigation of a certain m
-        for i in range(0, n):
-            trial_count.append(0)
-            true_count.append(0)
-            false_count.append(0)
-            incentive.append(0.0)
-            trial_time.append(0.0)
-        total_run = 0               # The total number of of trials performed on all m
-        best_log_bound = nan        # After the while loop below, this will be the best bound we have obtained
-        m_star = -1                 # After the while loop below, this will be the m that gives us the best bound
+        trial_count = [0] * n            # The number of trials performed on m
+        true_count = [0] * n             # The number of trials m is satisfiable
+        false_count = [0] * n            # The number of trials m is unsatisfiable
+        incentive = [0.0] * n            # The incentive to perform trial on m in the next step
+        trial_time = [0.0] * n           # The amount of time spent on the investigation of a certain m
+        total_run = 0                    # The total number of of trials performed on all m
 
         while True:
             # Select the m with the strongest incentive to investigate
@@ -64,10 +56,10 @@ class SATCounter:
                     # The expected # of trials we can perform if the current m is the bandit we will explore
                     expected_trial = timer.time() / (trial_time[m] / trial_count[m]) / 2 + trial_count[m]
                     if expected_trial * c > -ln(delta):     # We have enough time to obtain some kind of bound
-                        eps = -3 * ln(delta) + sqrt(ln(delta) ** 2 - 8 * c * expected_trial * ln(delta))
-                        eps = eps / 2 / (c * expected_trial + ln(delta))
+                        kappa = -3 * ln(delta) + sqrt(ln(delta) ** 2 - 8 * c * expected_trial * ln(delta))
+                        kappa /= 2 * (c * expected_trial + ln(delta))
                         if c != 0:
-                            incentive[m] = (big_two ** m) * c / (1 + eps)
+                            incentive[m] = (big_two ** m) * c / (1 + kappa)
                         else:
                             incentive[m] = big_zero
                         if incentive[m] < 0:
@@ -77,8 +69,8 @@ class SATCounter:
 
                     # Find m with best outlook
                     if incentive[m] > max_exp:
-                        max_exp = incentive[m]
-                        max_exp_m = m
+                            max_exp = incentive[m]
+                            max_exp_m = m
 
             # Limit our range of exploration between [max_exp_m - 8, max_exp_m + 8)
             m_min = max_exp_m - 8
@@ -100,19 +92,17 @@ class SATCounter:
                     incentive[m] += math.sqrt(2.0 * math.log(total_run) / trial_count[m])
 
             # Find the m with best incentive as m_star
-            m_star = 0
-            incentive_star = -1
-            for m in range(m_min, m_max):
-                if incentive[m] > incentive_star:
-                    incentive_star = incentive[m]
-                    m_star = m
+            m_star = int(np.argmax(incentive[m_min:m_max]) + m_min)
+            incentive_star = np.max(incentive[m_min:m_max])
 
             if self.verbose:
-                print(" found m = " + str(m_star) + " with incentive " + str(incentive_star) +
-                      ". center=" + str(max_exp_m))
+                print("Found m = %d with incentive %f. center = %d, time left %f" % (m_star, incentive_star, max_exp_m, timer.time()))
 
             # Perform a trial on that m
-            self.sat.parityConstraints(m_star, f)
+            if self.use_regular:
+                self.sat.add_regular_constraints(m_star, f)
+            else:
+                self.sat.add_parity_constraints(m_star, f)
             outcome = self.sat.solve(max_time=timer.time())
             if outcome is True:
                 true_count[m_star] += 1
@@ -122,12 +112,13 @@ class SATCounter:
                 trial_count[m_star] += 1
 
             if self.verbose:
+                status_msg = "%d/%d satisfiable @ m = %d" % (true_count[m_star], trial_count[m_star], m_star)
                 if outcome is True:
-                    print("SAT......" + str(true_count[m_star]) + "/" + str(trial_count[m_star]) + " SAT")
+                    print("SAT......" + status_msg)
                 elif outcome is False:
-                    print("UNSAT...." + str(true_count[m_star]) + "/" + str(trial_count[m_star]) + " SAT")
+                    print("UNSAT...." + status_msg)
                 else:
-                    print("timeout.." + str(true_count[m_star]) + "/" + str(trial_count[m_star]) + " SAT")
+                    print("timeout.." + status_msg)
 
             # Check if that m_star satisfies our termination criteria
             if trial_count[m_star] != 0:
@@ -137,9 +128,8 @@ class SATCounter:
                 if confidence >= min_confidence:
                     best_log_bound = m_star * ln(2) + ln(c) - ln(1 + best_slack)
                     if self.verbose:
-                        print("Complete! best log bound is " + str(best_log_bound) + " @ " + str(m_star))
-                        print(str(true_count[m_star]) + "/" + str(trial_count[m_star]) +
-                              " SAT, epsilon = " + str(best_slack))
+                        print("Complete! best log bound is %f @ m_star = %d" % (best_log_bound, m_star))
+                        print("%d/%d satisfiable, kappa = %f" % (true_count[m_star], trial_count[m_star], best_slack))
                     break
 
             end_time = time.time()
@@ -149,33 +139,32 @@ class SATCounter:
             if timer.timeout():
                 best_log_bound = nan
                 m_star = -1
-                eps_star = 0
+                kappa_star = 0.0
                 for m in range(0, n):
                     if trial_count[m] == 0:
                         continue
                     c = float(true_count[m]) / trial_count[m]
                     T = trial_count[m]
                     if c * T > -ln(delta):
-                        eps = -3 * ln(delta) + sqrt(ln(delta) ** 2 - 8 * c * T * ln(delta))
-                        eps = eps / 2 / (c * T + ln(delta))
-                        cur_bound = m * ln(2) + ln(c) - ln(1 + eps)
+                        kappa = -3 * ln(delta) + sqrt(ln(delta) ** 2 - 8 * c * T * ln(delta))
+                        kappa /= 2 * (c * T + ln(delta))
+                        cur_bound = m * ln(2) + ln(c) - ln(1 + kappa)
                         if math.isnan(best_log_bound) or cur_bound > best_log_bound:
                             best_log_bound = cur_bound
                             m_star = m
-                            eps_star = eps
+                            kappa_star = kappa
                 if self.verbose:
-                    print("Time up! best log bound is " + str(best_log_bound) + " @ " + str(m_star))
-                    print(str(true_count[m_star]) + "/" + str(trial_count[m_star]) +
-                          " SAT, epsilon = " + str(eps_star))
+                    print("Time up! best log bound is %f @ m_star = %d" % (best_log_bound, m_star))
+                    print("%d/%d satisfiable, kappa = %f" % (true_count[m_star], trial_count[m_star], kappa_star))
                 break
 
             total_run += 1
 
         if self.verbose:
-            print("Time usage: " + str(max_time - timer.time()) + "s")
+            print("Time usage: %fs, efficiency: %f" % (max_time - timer.time(), float(trial_count[m_star]) / total_run))
         return best_log_bound, m_star, max_time - timer.time(), float(trial_count[m_star]) / total_run
 
-    def lowerBoundEnumerate(self, f, min_confidence=0.9, max_time=600, min_m=0, max_m=-1):
+    def lower_bound_enumerate(self, f, min_confidence=0.9, max_time=600, min_m=0, max_m=-1):
         """ Get a lower bound for the SAT problem with specified constraint density and minimum confidence
         This does a brute force search on all possible m, each possible m is investigated until max_time
         Returns a tuple of the log of best bound obtained, the best m to give us that bound"""
@@ -206,7 +195,7 @@ class SATCounter:
 
             while True:
                 # Perform a trial on that m
-                self.sat.parityConstraints(m, f)
+                self.sat.add_parity_constraints(m, f)
                 outcome = self.sat.solve(timer.time())
                 if outcome is True:
                     true_count += 1
@@ -214,34 +203,35 @@ class SATCounter:
                     false_count += 1
 
                 if self.verbose:
+                    status_msg = "%d/%d satisfiable @ m = %d" % (true_count, true_count + false_count, m)
                     if outcome is True:
-                        print("SAT......" + str(true_count) + "/" + str(true_count + false_count) + " SAT @ " + str(m))
+                        print("SAT......" + status_msg)
                     elif outcome is False:
-                        print("UNSAT...." + str(true_count) + "/" + str(true_count + false_count) + " SAT @ " + str(m))
+                        print("UNSAT...." + status_msg)
                     else:
-                        print("timeout.." + str(true_count) + "/" + str(true_count + false_count) + " SAT @ " + str(m))
+                        print("timeout.." + status_msg)
 
                 # If timer times out, find out the best bound we have
                 if timer.timeout():
                     if true_count + false_count == 0:
                         log_bound_list[m] = nan
                         if self.verbose:
-                            print("m = " + str(m) + " failed, not a single instance can be evaluated")
+                            print("m = %d failed, not a single instance can be evaluated" % m)
                         break
 
                     T = float(true_count + false_count)
                     c = float(true_count) / T
                     if c * T > -ln(delta):
-                        eps = -3 * ln(delta) + sqrt(ln(delta) ** 2 - 8 * c * T * ln(delta))
-                        eps = eps / 2 / (c * T + ln(delta))
-                        log_bound_list[m] = m * ln(2) + ln(c) - ln(1 + eps)
+                        kappa = -3 * ln(delta) + sqrt(ln(delta) ** 2 - 8 * c * T * ln(delta))
+                        kappa = kappa / 2 / (c * T + ln(delta))
+                        log_bound_list[m] = m * ln(2) + ln(c) - ln(1 + kappa)
                         if self.verbose:
-                            print("m = " + str(m) + " complete, obtained log bound = " + str(log_bound_list[m]))
-                            print(str(true_count) + "/" + str(true_count + false_count) + " SAT, epsilon = " + str(eps))
+                            print("m = %d complete, obtained log bound = %f" % (m, log_bound_list[m]))
+                            print("%d/%d satisfiable, kappa = %f" % (true_count, true_count + false_count, kappa))
                     else:
                         log_bound_list[m] = nan
                         if self.verbose:
-                            print("m = " + str(m) + " failed, too few instance evaluated")
+                            print("m = %d failed, too few instance evaluated" % m)
                     break
 
         # Find the best bound obtained
@@ -255,7 +245,7 @@ class SATCounter:
             print("Complete! best log bound is " + str(best_bound) + " @ " + str(m_star))
         return best_bound, m_star
 
-    def upperBound(self, f, min_confidence=0.9, bold=True, max_time=600):
+    def upper_bound(self, f, min_confidence=0.9, bold=False, max_time=600):
         """ Get a upper bound for the SAT problem with specified constraint density and minimum confidence
         Returns a tuple of the best bound obtained, the best m to give us that bound, time usage,
         percentage of computational resources used on optimal m. If no results are obtained returns -1"""
@@ -267,9 +257,9 @@ class SATCounter:
         ln = math.log
         delta = 1 - min_confidence
         n = self.sat.n
-        T = 24 * ln(1 / delta)
+        T = int(math.ceil(24 * ln(1 / delta)))
         if self.verbose:
-            print("Requires " + str(T) + " samples to verify")
+            print("Requires %d samples to verify" % T)
 
         # If in bold mode, estimate the place where the problem becomes UNSAT and limit our search in that region
         max_m_global = n
@@ -277,10 +267,10 @@ class SATCounter:
             if self.verbose:
                 print("Searching for the maximum reasonable m")
             for m in range(0, n, 5):
-                self.sat.parityConstraints(m, f)
+                self.sat.add_parity_constraints(m, f)
                 outcome = self.sat.solve(timer.time())
                 if self.verbose:
-                    print("[m=" + str(m) + ", " + str(outcome) + "] "),
+                    print("[m=%d, %s]" % (m, str(outcome))),
                     if outcome is not True:
                         print("")
                 if outcome is None:
@@ -293,34 +283,26 @@ class SATCounter:
                     return float('nan'), -1, max_time, 0
 
         if self.verbose:
-            print("Starting the search maximum m of " + str(max_m_global))
+            print("Starting the search maximum m of %d " % max_m_global)
             print("Computing expected bound if trial successful")
 
         # Upper bound that would be obtained if half the bins are empty
         upper_bound_list = []
         for m in range(0, max_m_global + 1):
-            expected_bound = self.upperBoundExpected(m, f)
+            expected_bound = self.upper_bound_expected(m, f)
             upper_bound_list.append(expected_bound)
             if self.verbose:
-                print("[" + str(m) + ": " + ("%.2f" % float(bf.log(expected_bound))) + "] "),
+                print("[%d:%.2f]" % (m, float(bf.log(expected_bound)))),
                 if m == max_m_global:
                     print("")
 
         # Define required variables
-        trial_count = []            # The number of trials performed on m
-        true_count = []             # The number of trials m is satisfiable
-        false_count = []            # The number of trials m is unsatisfiable
-        incentive = []              # The incentive to perform trial on m in the next step
-        posterior_success_prob = []
-        for i in range(0, n):
-            trial_count.append(0)
-            true_count.append(0)
-            false_count.append(0)
-            incentive.append(BigFloat(0))
-            posterior_success_prob.append(0.0)
+        trial_count = [0] * n                   # The number of trials performed on m
+        true_count = [0] * n                    # The number of trials m is satisfiable
+        false_count = [0] * n                   # The number of trials m is unsatisfiable
+        incentive = [BigFloat(0)] * n           # The incentive to perform trial on m in the next step
+        posterior_success_prob = [0.0] * n
         total_run = 0
-        best_bound = BigFloat(-1)
-        m_star = -1
 
         while True:
             if self.verbose:
@@ -351,25 +333,24 @@ class SATCounter:
                 if trial_count[m] == 0:
                     incentive[m] = BigFloat(100)        # Very strong incentive if this has never been explored before
                 else:
-                    if max_exp == 0:
+                    if max_exp == BigFloat(0):
                         incentive[m] = BigFloat(0)
                     else:
                         incentive[m] = incentive[m] / max_exp
                     incentive[m] += math.sqrt(2.0 * math.log(total_run) / trial_count[m])
 
             # Find the m_star that maximizes incentive
-            m_star = 0
             incentive_star = BigFloat(-1)
+            m_star = -1
             for m in range(m_min, m_max):
                 if incentive[m] > incentive_star:
                     incentive_star = incentive[m]
                     m_star = m
             if self.verbose:
-                print(" found m = " + str(m_star) + " with incentive " + str(incentive_star) +
-                      ". center=" + str(max_exp_m))
+                print("Found m = %d with incentive %f. center = %d" % (m_star, incentive_star, max_exp_m))
 
             # Perform a trial on that m
-            self.sat.parityConstraints(m_star, f)
+            self.sat.add_parity_constraints(m_star, f)
             outcome = self.sat.solve(timer.time())
             if timer.timeout():
                 print("Timeout!")
@@ -383,32 +364,33 @@ class SATCounter:
                 trial_count[m_star] += 1
 
             if self.verbose:
+                status_msg = "%d/%d satisfiable @ m = %d" % (true_count[m_star], trial_count[m_star], m_star)
                 if outcome is True:
-                    print("SAT......" + str(true_count[m_star]) + "/" + str(trial_count[m_star]) + " SAT")
+                    print("SAT......" + status_msg)
                 elif outcome is False:
-                    print("UNSAT...." + str(true_count[m_star]) + "/" + str(trial_count[m_star]) + " SAT")
+                    print("UNSAT...." + status_msg)
                 else:
-                    print("timeout.." + str(true_count[m_star]) + "/" + str(trial_count[m_star]) + " SAT")
+                    print("timeout.." + status_msg)
 
             # Update posterior success probability
             if trial_count[m_star] > 0:
-                posterior_success_prob[m_star] = self.posteriorSuccessProb(T, trial_count[m_star], true_count[m_star])
+                posterior_success_prob[m_star] = self.posterior_success_prob(T, trial_count[m_star], true_count[m_star])
 
             # Check if that m_star satisfies our termination criteria
             if trial_count[m_star] >= T and true_count[m_star] < false_count[m_star]:
                 best_bound = upper_bound_list[m_star]
                 if self.verbose:
-                    print("Complete! best log bound is " + str(float(bf.log(best_bound))) + " @ " + str(m_star))
+                    print("Complete! best log bound is %f @ m_star = %d" % (float(bf.log(best_bound)), m_star))
                 break
 
             total_run += 1
 
         end_time = time.time()
         if self.verbose:
-            print("Time usage: " + str(end_time - start_time) + "s")
+            print("Time usage: %fs, efficiency: %f" % (end_time - start_time, float(T) / total_run))
         return float(bf.log(best_bound)), m_star, end_time - start_time, float(T) / total_run
 
-    def upperBoundEnumerate(self, f, min_confidence=0.9, min_m=0, max_m=-1, max_time=600):
+    def upper_bound_enumerate(self, f, min_confidence=0.9, min_m=0, max_m=-1, max_time=600):
         """ Get a log upper bound for the SAT problem with specified constraint density and minimum confidence
         This does a brute force search on all possible m, each possible m is investigated for adequate number of times
         Returns the best bound, m to give us that bound, and time consumed on that particular m """
@@ -419,14 +401,14 @@ class SATCounter:
             max_m = n
         T = int(round(24 * math.log(1 / delta)))
         if self.verbose:
-            print("Requires " + str(T) + " samples to verify")
+            print("Requires %d samples to verify" % T)
 
         # Iterate from small m to large, smaller m gives better bounds
         for m in range(min_m, max_m):
             timer = Timer(max_time)
             time_out = False
 
-            print("Inspecting m = " + str(m))
+            print("Inspecting m = %d" % m)
             start_time = time.time()
             true_count = 0              # The number of trials m is satisfiable
             false_count = 0             # The number of trials m is unsatisfiable
@@ -435,10 +417,10 @@ class SATCounter:
                 outcome = self.sat.solve(timer.time())
                 if outcome is True:
                     true_count += 1
-                    print("1"),
+                    print("T"),
                 elif outcome is False:
                     false_count += 1
-                    print("0"),
+                    print("F"),
                 else:
                     print("E"),
                     time_out = True
@@ -448,16 +430,15 @@ class SATCounter:
                     break
 
             end_time = time.time()
-            print(" ")
-            print(str(true_count) + " out of " + str(T) + " evaluated to be SAT")
+            print("\n %d out of %d evaluated to be satisfiable" % (true_count, T))
             if true_count < false_count and not time_out:
-                actual_bound = self.upperBoundExpected(m, f)
-                print("Solved @ m = " + str(m) + " with upper bound " + str(float(bf.log(actual_bound))))
+                actual_bound = self.upper_bound_expected(m, f)
+                print("Solved @ m = %d with log upper bound %f" % (m, float(bf.log(actual_bound))))
                 return float(bf.log(actual_bound)), m, end_time - start_time
         return -1, -1, -1
 
     @staticmethod
-    def posteriorSuccessProb(T, k, l):
+    def posterior_success_prob(T, k, l):
         """ If out of the first k samples, l are one, this computes the MLE of the probability
         that less than half of the T samples shall be 1 (Generally T should not be greater than 100
         to guarantee numerical stability """
@@ -468,7 +449,7 @@ class SATCounter:
             sum += binom(T - k, i) * (p ** i) * ((1 - p) ** (T - k - i))
         return sum
 
-    def upperBoundExpected(self, m, f, tolerance=0.001):
+    def upper_bound_expected(self, m, f, tolerance=0.001):
         """ Obtain the expected upper bound for set size given m, and f, accurate to given tolerance """
         # Shorthand definition
         two_to_m = BigFloat(2.0) ** m
@@ -478,7 +459,7 @@ class SATCounter:
         q_max = BigFloat(2.0) ** self.sat.n
         for iteration in range(0, self.sat.n + 10):
             q_mid = bf.sqrt(q_min * q_max)  # Search by geometric mean
-            v = q_mid / two_to_m * (1 + self.computeEpsQ(m, q_mid, f) - q_mid / two_to_m)
+            v = q_mid / two_to_m * (1 + self.compute_eps_q(m, q_mid, f) - q_mid / two_to_m)
             z = 1 - v / (v + (q_mid / two_to_m) ** 2)
             if z > 3.0 / 4:
                 q_max = q_mid
@@ -490,7 +471,7 @@ class SATCounter:
                 break
         return bf.sqrt(q_max * q_min)
 
-    def computeEpsQ(self, m, q, f):
+    def compute_eps_q(self, m, q, f):
         """ This function computes epsilon(n, m, q, f) * (q - 1), and is optimized for multiple queries """
         # Use binary search to find maximum w_star so that sum_{w = 1}^{w_star} C(n, w) <= q - 1
         # The possible w_star lies in [w_min, w_max]
@@ -515,7 +496,7 @@ class SATCounter:
         return epsq
 
     @staticmethod
-    def computeEpsQStatic(n, m, q, f, binom=None):
+    def compute_eps_q_static(n, m, q, f, binom=None):
         """ This function computes epsilon(n, m, q, f) * (q - 1), and is not optimized for multiple queries """
         # Use binary search to find maximum w_star so that sum_{w = 1}^{w_star} C(n, w) <= q - 1
         # The possible w_star lies in [w_min, w_max]
@@ -541,7 +522,7 @@ class SATCounter:
             epsq += binom.binom(w) * (0.5 + 0.5 * (BigFloat(1.0 - 2 * f) ** w)) ** m
         return epsq
 
-    def computeFStar(self, m):
+    def compute_f_star(self, m):
         """Compute the minimum f to guarantee a constant factor approximation"""
         q = BigFloat(2.0) ** (m + 2)
         threshold = 31 / 5
@@ -552,7 +533,7 @@ class SATCounter:
         for iteration in range(0, 10):
             f_mid = (f_left + f_right) / 2
             # Compute eps from f
-            eps = self.computeEpsQ(m, q, f_mid)
+            eps = self.compute_eps_q(m, q, f_mid)
             if eps < threshold:
                 f_right = f_mid
             else:
@@ -560,7 +541,7 @@ class SATCounter:
         return (f_left + f_right) / 2
 
     @staticmethod
-    def computeFStarStatic(n, m):
+    def compute_f_star_static(n, m):
         """Compute the minimum f to guarantee a constant factor approximation"""
         q = BigFloat(2.0) ** (m + 2)
         threshold = 8
@@ -572,15 +553,10 @@ class SATCounter:
         for iteration in range(0, 10):
             f_mid = (f_left + f_right) / 2
             # Compute eps from f
-            eps = SATCounter.computeEpsQStatic(n, m, q, f_mid, binom)
+            eps = SATCounter.compute_eps_q_static(n, m, q, f_mid, binom)
             if eps < threshold:
                 f_right = f_mid
             else:
                 f_left = f_mid
         return (f_left + f_right) / 2
-
-
-
-
-
 
