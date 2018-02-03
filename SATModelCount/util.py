@@ -1,13 +1,13 @@
-__author__ = 'shengjia'
-
 from bigfloat import BigFloat
 import bigfloat as bf
 import random
 import math
 
-''' Class that computes binomial and partial sum of binomials and returns values in BigFloat
-    This class once computed a result, caches it, after which each query only takes O(1) time '''
+
 class BigBinom:
+    """ Class that computes binomial and partial sum of binomials and returns values in BigFloat
+        This class once computed a result, caches it, after which each query only takes O(1) time """
+
     def __init__(self, n):
         self.n = n
         # binom_list[m] = binom(n, m)
@@ -44,8 +44,8 @@ class BigBinom:
         return result
 
 
-''' Generate a data set with clauses size drawn uniformly from atom_count_set '''
 def gen_data_set(file_name, num_of_var, num_of_clause, atom_count_set):
+    """ Generate a data set with clauses size drawn uniformly from atom_count_set """
     out_file = open(file_name, "w")
     out_file.write("p cnf " + str(num_of_var) + " " + str(num_of_clause) + "\n")
     for i in range(0, num_of_clause):
@@ -63,7 +63,6 @@ def gen_data_set(file_name, num_of_var, num_of_clause, atom_count_set):
     out_file.close()
 
 
-''' Internal testing '''
 if __name__ == '__main__':
     # gen_data_set("SAT3.cnf", 200, 650, [3])
     for n_index in range(10, 20):
