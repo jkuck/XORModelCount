@@ -35,7 +35,8 @@ if __name__ == '__main__':
 
     f = float(sys.argv[3])
     max_time = float(sys.argv[5])
-    min_confidence = 0.95
+#    min_confidence = 0.95
+    min_confidence = 0.975
 
     ofstream.write("Problem name: " + sys.argv[1] + "\n")
     ofstream.write("n = " + str(problem.n) + ", f = " + str(f) + " \n")
