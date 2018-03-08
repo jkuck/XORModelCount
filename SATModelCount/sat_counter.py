@@ -103,7 +103,7 @@ class SATCounter:
                 self.sat.add_regular_constraints(m_star, f)
             else:
                 self.sat.add_parity_constraints(m_star, f)
-            outcome = self.sat.solve(max_time=timer.time())
+            (outcome, run_time) = self.sat.solve(max_time=timer.time())
             if outcome is True:
                 true_count[m_star] += 1
                 trial_count[m_star] += 1

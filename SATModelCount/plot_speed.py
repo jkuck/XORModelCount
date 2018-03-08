@@ -1,7 +1,9 @@
 from matplotlib import pyplot as plt
 
-random_file = 'SATModelCount/result/speed20.txt'
-regular_file = 'SATModelCount/result/rspeed20.txt'
+#random_file = 'SATModelCount/result/speed20.txt'
+#regular_file = 'SATModelCount/result/rspeed20.txt'
+random_file = 'result/speed20.txt'
+regular_file = 'result/rspeed20.txt'
 
 def read_file(filename):
     reader = open(filename, 'r')
