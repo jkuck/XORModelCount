@@ -6,6 +6,10 @@ import time
 import os
 import math
 
+CRYPTOMINISAT5_DIRECTORY = '/Users/jkuck/software/cryptominisat-5.0.1/build'
+SAT_SOLVER = "CRYPTOMINISAT5"
+
+
 # Runs a system command without timeout
 def run_command(command):
     p = subprocess.Popen(command,
@@ -178,6 +182,7 @@ class SAT:
                 print("Maximum xor length is %d. Added %d new variables" % (self.max_xor, self.new_variables))
                 
     def solve(self, max_time=-1):
+        print 'hi'
         """ Attempt to solve the problem, returns True/False if the problem is satisfiable/unsatisfiable,
     returns None if timeout """
         if self.fail_apriori:
@@ -200,7 +205,10 @@ class SAT:
             ofstream.write("0\n")
         ofstream.close()
         start_time = time.time()
-        solver = Command(['./cryptominisat', '--verbosity=0', '--gaussuntil=400', '--threads=1', filename])
+        if SAT_SOLVER == 'ORIGINAL':
+            solver = Command(['./cryptominisat', '--verbosity=0', '--gaussuntil=400', '--threads=1', filename])
+        elif SAT_SOLVER == 'CRYPTOMINISAT5':
+            solver = Command(['%s/cryptominisat5' % CRYPTOMINISAT5_DIRECTORY, '--verb', '0', filename])
         result = solver.run(timeout=max_time)
         end_time = time.time()
         run_command(['rm', filename])
@@ -232,9 +240,19 @@ class SAT:
 
 
 if __name__ == '__main__':
-    problem = SAT('examples/lang12.cnf', verbose=False)
-    problem.n = 100
-    problem.add_regular_constraints(12, 0.02)
+    
+    problem = SAT('examples/lang12.cnf', verbose=True)
+#    problem.n = 100
+    problem.add_parity_constraints(m=20, f=.05)
+    problem.solve()
+    exit(0)
+
+
+    problem = SAT('examples/lang12.cnf', verbose=True)
+#    problem.n = 100
+#    problem.add_regular_constraints(12, 0.02)
+    problem.add_regular_constraints(20, 0.01)
+    problem.solve()
     exit(0)
 
     true_count = 0
