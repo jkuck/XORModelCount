@@ -2,8 +2,9 @@ from matplotlib import pyplot as plt
 
 #random_file = 'SATModelCount/result/speed20.txt'
 #regular_file = 'SATModelCount/result/rspeed20.txt'
-random_file = 'result/1speed20.txt'
-regular_file = 'result/1rspeed20.txt'
+
+random_file = 'result/speed20.txt'
+regular_file = 'result/rspeed20.txt'
 
 random_file = 'result/speed_m=10.txt'
 regular_file = 'result/rspeed_m=10.txt'
