@@ -336,9 +336,6 @@ class SAT:
         if k==None or k*m_effective > self.n: #use k = n/m_effective
             k_low = int(math.floor(float(self.n) / m_effective))
             k_high = int(math.ceil(float(self.n) / m_effective))
-        elif k == 'maxConstant':
-            k_low = int(math.floor(float(self.n) / m_effective))
-            k_high = int(math.floor(float(self.n) / m_effective))            
         else:
             k_low = k
             k_high = k
@@ -577,11 +574,12 @@ if __name__ == '__main__':
     total_time = 0.0
     total_satisfied_sol_found = 0
 #    PROBLEM_NAMES = ['c432.isc', 'c499.isc', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'ra.cnf', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'log-1.cnf', 'log-2.cnf', 'lang12.cnf']
-    PROBLEM_NAMES = ['sat-grid-pbl-0010.cnf']
+#    PROBLEM_NAMES = ['sat-grid-pbl-0010.cnf']
+    PROBLEM_NAMES = ['hypercube2.cnf']
     for problem_name in PROBLEM_NAMES:
         for i in range(REPEATS):
             sat = SAT("../../low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
-            sat.add_regular_constraints_constantF_permuted(m=5, f=.01, f_block=1, permute=True, k=None, ADD_CONSTRAINT_ALL_ONES=True)
+            #sat.add_regular_constraints_constantF_permuted(m=5, f=.01, f_block=1, permute=True, k=None, ADD_CONSTRAINT_ALL_ONES=True)
             #sat.add_permutation_constraints(m=sat.n, f=0.05)
             #sat.add_variable_length_constraints(m=sat.n, f=0.05)
 
@@ -590,7 +588,7 @@ if __name__ == '__main__':
             
             #sat.add_parity_constraints(m=sat.n, f=.0590909)
 
-            sat.add_regular_constraints_constantF_permuted(m=m, f=f, f_block=f_block)
+            #sat.add_regular_constraints_constantF_permuted(m=m, f=f, f_block=f_block)
             #sat.add_regular_constraints_constantF(m, f)
             outcome = sat.solve(3600)
             elapsed_time = outcome[1]

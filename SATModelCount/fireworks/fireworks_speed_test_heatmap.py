@@ -58,7 +58,16 @@ m_ranges = {#'c432.isc': range(25, 42), #log_2(Z) = 36.1
             'tire-4.cnf': range(35, 60), #log_2(Z) = 46.6    #range(27, 32), #range(20, 40), 
             'log-1.cnf': range(60, 85), #log_2(Z) = 69.0
             'log-2.cnf': range(30, 45), #log_2(Z) = 34.9
-            'lang12.cnf': range(10, 26) #log_2(Z) =
+            'lang12.cnf': range(10, 26), #log_2(Z) =
+            'hypercube.cnf': range(80, 100), #log_2(Z) = 90
+            'hypercube1.cnf': range(40, 60), #log_2(Z) = 50
+            'hypercube2.cnf': range(1, 20), #log_2(Z) = 10
+            'hypercube3.cnf': range(1, 30), #log_2(Z) = 10
+            'hypercube4.cnf': range(10, 40), #log_2(Z) = 20
+            'hypercube5.cnf': range(40, 70), #log_2(Z) = 50
+            'hypercube6.cnf': range(90, 120), #log_2(Z) = 100
+            'hypercube7.cnf': range(490, 530), #log_2(Z) = 500
+
             }
 
 f_ranges = {'c432.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
@@ -80,6 +89,15 @@ f_ranges = {'c432.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in rang
             'tire-4.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
             'log-1.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
             'log-2.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'hypercube.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'hypercube1.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'hypercube2.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'hypercube3.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'hypercube4.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'hypercube5.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'hypercube6.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'hypercube7.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+
             }
 
 #logger = open('heatmap_result_moreModels2/speed=%d.txt' % (m), "w")
@@ -217,19 +235,13 @@ class RunExperimentBatch(FireTaskBase):
 @explicit_serialize
 class RunSpecificExperimentBatch(FireTaskBase):   
     def run_task(self, fw_spec):
-        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/heatmap_result_fireworksTIMEOUTallFcorrected1/%s' % fw_spec['problem_name'].split('.')[0]
+        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/heatmap_result_fireworksTIMEOUThighDimHypercubes/%s' % fw_spec['problem_name'].split('.')[0]
         if not os.path.exists(RESULTS_DIRECTORY):
             os.makedirs(RESULTS_DIRECTORY)      
 
-        if fw_spec['adjust_f']:
-            filename = '%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF_REPEATS=%d_expIdx=%d.txt'%\
-                (RESULTS_DIRECTORY, fw_spec['f_block'], fw_spec['permute'], fw_spec['k'], fw_spec['ADD_CONSTRAINT_ALL_ONES'],\
-                fw_spec['repeats'], fw_spec['experiment_idx'])
-
-        else:
-            filename = '%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_REPEATS=%d_expIdx=%d.txt'%\
-                (RESULTS_DIRECTORY, fw_spec['f_block'], fw_spec['permute'], fw_spec['k'], fw_spec['ADD_CONSTRAINT_ALL_ONES'],\
-                fw_spec['repeats'], fw_spec['experiment_idx'])
+        filename = '%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_REPEATS=%d_expIdx=%d.txt'%\
+            (RESULTS_DIRECTORY, fw_spec['f_block'], fw_spec['permute'], fw_spec['k'], fw_spec['ADD_CONSTRAINT_ALL_ONES'],\
+            fw_spec['adjust_f'], fw_spec['repeats'], fw_spec['experiment_idx'])
 
 
         REPEATS = 10
@@ -253,7 +265,18 @@ class RunSpecificExperimentBatch(FireTaskBase):
                 quit_m_early = False
                 last_m_val = -1
                 for m in [m*(dup_copies+1) for m in m_ranges[fw_spec['problem_name']]]:
-                    if fw_spec['adjust_f']:
+                    if fw_spec['ADD_CONSTRAINT_ALL_ONES']:
+                        m_effective = m - 1
+                    else:
+                        m_effective = m
+                    if k==None or k*m_effective > self.n: #use k = n/m_effective
+                        k_low = int(math.floor(float(self.n) / m_effective))
+                        k_high = int(math.ceil(float(self.n) / m_effective))
+                    else:
+                        k_low = k
+                        k_high = k
+            
+                    if fw_spec['adjust_f'] == True:
                         #compute f such that the original matrix construction using iid entries will
                         #have the same expected number of 1's as when floor(n/m) entries are added with
                         #probability (1-f)
@@ -262,6 +285,17 @@ class RunSpecificExperimentBatch(FireTaskBase):
                         f_orig = (f*(sat.n - 2*max_const_k) + max_const_k)/(sat.n)
                         if f_orig > .5:
                             continue
+                    elif fw_spec['adjust_f'] == expectedNum1s:
+                        #f is the the density of ones, find values of f and k that achieve this density
+                        if k==None or k*m_effective > self.n: #use k = n/m_effective
+                            k_low = int(math.floor(float(self.n) / m_effective))
+                            k_high = int(math.ceil(float(self.n) / m_effective))
+                        elif k == 'maxConstant':
+                            k_low = int(math.floor(float(self.n) / m_effective))
+                            k_high = int(math.floor(float(self.n) / m_effective))            
+                        else:
+                            k_low = k
+                            k_high = k
                     else:
                         f_orig = f
                     failures = 0
@@ -295,7 +329,7 @@ class RunSpecificExperimentBatch(FireTaskBase):
                     for m in reversed([m*(dup_copies+1) for m in m_ranges[fw_spec['problem_name']]]):
                         if m <= last_m_val:
                             break
-                        if fw_spec['adjust_f']:
+                        if fw_spec['adjust_f'] == True:
                             #compute f such that the original matrix construction using iid entries will
                             #have the same expected number of 1's as when floor(n/m) entries are added with
                             #probability (1-f)
@@ -356,8 +390,9 @@ def run_experiment():
 
     all_fireworks = [] 
 
-    PROBLEM_NAMES = ['hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
+    #PROBLEM_NAMES = ['hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
     #PROBLEM_NAMES = ['c432.isc']
+    PROBLEM_NAMES = ['hypercube3.cnf', 'hypercube4.cnf', 'hypercube5.cnf', 'hypercube6.cnf', 'hypercube7.cnf']
     REPEATS_OF_EXPERIMENT = 10
 
     for problem_name in PROBLEM_NAMES:
@@ -370,8 +405,11 @@ def run_experiment():
 #                                                  ('1', False, 0)]
                 for (f_block, permute, k, ADD_CONSTRAINT_ALL_ONES, adjust_f) in \
                     [('1minusF', True, 'maxConstant', False, False),\
-                     ('1', False, 0, False, False),\
-                     ('1', True, None, False, False), ('1', False, None, False, False)]:                    
+                     ('1', False, 0, False, True)]:  
+#                    [('1minusF', True, 'maxConstant', False, False),\
+#                     ('1', False, 0, False, True),\
+#                     ('1', True, None, False, False), ('1', False, None, False, False)]:  
+
                     #[('1minusF', True, 'maxConstant', False), ('1minusF', True, 'maxConstant', True),\
                     #('1', True, None, True), ('1', False, None, True)]:                    
                     #[('1minusF', True, None, False), ('1minusF', False, None, False), ('1minusF', True, 3, True),\
@@ -385,9 +423,12 @@ def run_experiment():
                                 'permute': permute,
                                 'k': k,
                                 'ADD_CONSTRAINT_ALL_ONES':ADD_CONSTRAINT_ALL_ONES,
+                                #True:
                                 #compute f such that the original matrix construction using iid entries will
                                 #have the same expected number of 1's as when floor(n/m) entries are added with
                                 #probability (1-f)
+                                #False: don't adjust f's
+                                #'expectedNum1s': f denies the expected number of 1's for all methods
                                 'adjust_f': adjust_f,  
                                 }
                     all_fireworks.append(Firework(RunSpecificExperimentBatch(), spec=cur_spec))
