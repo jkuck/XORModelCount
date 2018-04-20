@@ -8,10 +8,11 @@ import math
 import numpy as np
 import operator as op
 import time
+import matplotlib
 from matplotlib import pyplot as plt
 from scipy.spatial import ConvexHull
 
-from plot_runtimeVSbound import read_files_moreInfo, log_2_Z
+from plot_runtimeVSbound import read_files_moreInfo, log_2_Z, read_files_moreInfo_newFormat
 import sys
 sys.path.insert(0, '/Users/jkuck/research/winter_2018/low_density_parity_checks/notes')
 
@@ -30,12 +31,18 @@ from var_computation import get_Ax_zero_probs
 ##except IOError:
 ##    pass
 
-EXPERIMENT_FOLDER = 'heatmap_result_fireworksTIMEOUTcomplete'
-PROBLEM_NAME = 'tire-1'
+NEW_FORMAT = True
+EXPERIMENT_FOLDER = 'heatmap_result_fireworksTIMEOUTallFadjusted2'
+PROBLEM_NAME = 'log-2'
+EXPERIMENT_FOLDER = 'heatmap_result_fireworksTIMEOUT_fDensity1'
+EXPERIMENT_FOLDER = 'heatmap_result_fireworksTIMEOUT_3_9'
+PROBLEM_NAME = 'tire-4'
 REPEATS = 10
 FILE_COUNT = 10
 PLOT_ACTUAL_POINTS = False
 ANNOTATE_PLOTS = False
+LOAD_PRECOMPUTED_BOUNDS = True
+
 ############ experiment parameters ############
 # 'f_block': 1 or '1minusF', the probability with which elements in the blocks of size k are set to 1
 # 'permute': True or False, whether the columns of A were permuted
@@ -43,26 +50,28 @@ ANNOTATE_PLOTS = False
 #      some blocks are size floor(n/m) and some are ceiling(n/m) to fill all columns
 # 'allOnesConstraint': True or False, whether a parity constraint containing all variables was included
 
-all_params_to_plot = [
+ALL_PARAMS_TO_PLOT = [
+    {'f_block': '1minusF',#kMaxConst_params = 
+     'permute': True,
+     'k': 'maxConstant',
+     'allOnesConstraint': False,
+     'adjustF': True},
+
      {'f_block': 1, #original baseline method where all elements are iid
     'permute': False,
     'k': 0,
-    'allOnesConstraint': False,},
-    
-    {'f_block': '1minusF',#kMaxConst_params = 
-     'permute': True,
-     'k': None,#'maxConstant',
-     'allOnesConstraint': False,},
+    'allOnesConstraint': False,
+    'adjustF': True},]
 
-    {'f_block': '1minusF', #k3_params =
-     'permute': True,
-     'k': 3,
-     'allOnesConstraint': False,}]
+#    {'f_block': '1minusF', #k3_params =
+#     'permute': True,
+#     'k': 3,
+#     'allOnesConstraint': False,}]
 
 def get_filebase(params):
-    filebase = '%s/%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_REPEATS=%d_expIdx=' \
-        % (EXPERIMENT_FOLDER, PROBLEM_NAME, params['f_block'], params['permute'], \
-           params['k'], params['allOnesConstraint'], REPEATS)
+    filebase = '%s/%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_REPEATS=%d_expIdx=' \
+            % (EXPERIMENT_FOLDER, PROBLEM_NAME, params['f_block'], params['permute'], \
+               params['k'], params['allOnesConstraint'], params['adjustF'], REPEATS)
     return filebase
 
 def get_n(problem_name):
@@ -171,7 +180,8 @@ def worstCaseSet_sumAxZero(n, m, k, f, DEBUG=False, only_even_w=False):
     assert(len(set_sizes) == len(set_probAxZero))
     for idx in range(1, len(set_sizes)):
         worstCase_setSize.append(worstCase_setSize[-1] + set_sizes_sortedByProb[idx])
-        sumAxZero.append(sumAxZero[-1] + set_sizes_sortedByProb[idx]*sorted_probAxZero[idx])
+        #sumAxZero.append(sumAxZero[-1] + set_sizes_sortedByProb[idx]*sorted_probAxZero[idx])
+        sumAxZero.append(sumAxZero[-1] + BigFloat(set_sizes_sortedByProb[idx])*BigFloat(sorted_probAxZero[idx]))
     assert(worstCase_setSize[-1] == 2**n - 1)
     if DEBUG:
         print 'simple debug'
@@ -479,6 +489,7 @@ def get_parallel_upper_bound(num_UNSAT, T, n, m, f, k, UNSAT_runtimes, all_runti
     #Bound holds with probability 1 - e^(-T/24), where T is the number of trials (or SAT problems run)
     if (1 - np.exp(-T/24) < min_confidence):
         print 'cannot compute a bound with the required min_confidence, too few trials (only', T, ')'
+        print 'm=%d, f=%f, k=%d, n=%d, T=%d' % (m, f, k, n, T)
         return (None, None)
 
     if num_UNSAT/T <= .5:
@@ -513,34 +524,85 @@ def get_all_parallel_upperBounds(params, repeats=REPEATS, file_count=FILE_COUNT)
     filebase = get_filebase(params)
     n = get_n(PROBLEM_NAME)
     print 'n=', n
-    (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes) = read_files_moreInfo(filename_base=filebase, repeats=REPEATS, file_count=FILE_COUNT)
+    if NEW_FORMAT:
+        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes, f_prime_dict, k_dict) = \
+            read_files_moreInfo_newFormat(filename_base=filebase, repeats=REPEATS, file_count=FILE_COUNT)
+    else:
+        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes) = read_files_moreInfo(filename_base=filebase, repeats=REPEATS, file_count=FILE_COUNT)
+    
     parallelBounds = []
     parallelRuntimes = []
-    #for (f_idx, f_val) in enumerate((sorted_f_vals)):
-    for f_val in [i/100 for i in range(15, 51)]:
+    for (f_idx, f_val) in enumerate((sorted_f_vals)):
+#    for f_val in [i/100 for i in range(15, 51)]:
         for (m_idx, m_val) in enumerate(sorted_m_vals):    
             #if f_val > .15:
             #    break
-            if params['k'] == None or params['k'] == 'maxConstant':
-                k = int(np.floor(n/m_val))
+            if not (f_val, m_val) in k_dict: #we didn't run this f, m combination
+                assert(not (f_val, m_val) in f_prime_dict)
+                continue
+
+            if NEW_FORMAT:
+                k = k_dict[(f_val, m_val)]
+                f_prime = f_prime_dict[(f_val, m_val)]
             else:
-                k = params['k']
+                if params['k'] == None or params['k'] == 'maxConstant':
+                    k = int(np.floor(n/m_val))
+                else:
+                    k = params['k']
+                f_prime = f_val
+
+            if f_prime == 0: #quick hack
+                f_prime = 0.0000000001
+            print 'f_prime=', f_prime, 'k=', k, 'f=', f_val, 'm=', m_val
             #assert(float(int(num_SAT[f_idx, m_idx])) == num_SAT[f_idx, m_idx])
             (ln_upperBound, parallel_runtime) = \
                 get_parallel_upper_bound(num_UNSAT=len(UNSAT_runtimes[(f_val, m_val)]), T=num_trials_dict[(f_val, m_val)],\
-                    n=n, m=m_val, f=f_val, k=k, UNSAT_runtimes=UNSAT_runtimes[(f_val, m_val)], all_runtimes=all_runtimes[(f_val, m_val)], params=params, min_confidence=.95)
+                    n=n, m=m_val, f=f_prime, k=k, UNSAT_runtimes=UNSAT_runtimes[(f_val, m_val)], all_runtimes=all_runtimes[(f_val, m_val)], params=params, min_confidence=.95)
             if ln_upperBound != None:
-                print 'numUNSAT=%d, Trials=%d, m=%d, f=%f, upperbound=%f, runtime=%f' % (len(UNSAT_runtimes[(f_val, m_val)]), num_trials_dict[(f_val, m_val)], m_val, f_val, ln_upperBound, parallel_runtime)
+                print 'numUNSAT=%d, Trials=%d, m=%d, f=%f, upperbound=%f, runtime=%f, k=%d' % (len(UNSAT_runtimes[(f_val, m_val)]), num_trials_dict[(f_val, m_val)], m_val, f_val, ln_upperBound, parallel_runtime, k)
                 parallelBounds.append(ln_upperBound)
                 parallelRuntimes.append(parallel_runtime)
     return parallelBounds, parallelRuntimes
 
+def pareto_frontier(Xs, Ys, maxX=True, maxY=True):
+    #http://code.activestate.com/recipes/578230-pareto-front/
+    myList = sorted([[Xs[i], Ys[i]] for i in range(len(Xs))], reverse=maxX)
+    p_front = [myList[0]]    
+    for pair in myList[1:]:
+        if maxY: 
+            if pair[1] >= p_front[-1][1]:
+                p_front.append(pair)
+        else:
+            if pair[1] <= p_front[-1][1]:
+                p_front.append(pair)
+    p_frontX = [pair[0] for pair in p_front]
+    p_frontY = [pair[1] for pair in p_front]
+    return p_frontX, p_frontY
+
 def plot_UBvsRuntime():
     
-    color_list = ['r', 'g', 'b']#, 'y', 'p']
-    for color_idx, params in enumerate(all_params_to_plot):
-        (parallel_bounds, parallel_runtimes) = \
-            get_all_parallel_upperBounds(params=params)
+    color_list = ['b', 'g', 'r']#, 'y', 'p']
+    labels_list = ['IID LDPC Matrix', 'Regular LDPC Matrix']
+    for color_idx, params in enumerate(ALL_PARAMS_TO_PLOT):
+        bounds_file_name = '/Users/jkuck/research/XORModelCount/SATModelCount/pickled_boundTimes/%sf_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s.pickle' % \
+        (PROBLEM_NAME, params['f_block'],params['permute'],params['k'],params['allOnesConstraint'],params['adjustF'])
+        print 'hi'
+        if LOAD_PRECOMPUTED_BOUNDS:
+            print bounds_file_name
+            try:
+                with open(bounds_file_name, 'r') as cache_file:
+                    (parallel_bounds, parallel_runtimes) = pickle.load(cache_file)
+                    'loadedfile!'
+            except IOError:
+                print 'whoops'
+                pass   
+        else:     
+            (parallel_bounds, parallel_runtimes) = \
+                get_all_parallel_upperBounds(params=params)
+            f = open(bounds_file_name, 'w')
+            pickle.dump((parallel_bounds, parallel_runtimes), f)
+            f.close() 
+
 
 
         if PLOT_ACTUAL_POINTS:
@@ -550,7 +612,35 @@ def plot_UBvsRuntime():
             plt.legend()
         #    plt.show()
 
-        PLOT_PARALLEL_CONVEX_HULLS = True
+        PLOT_PARETO_FRONTIER = True
+        if PLOT_PARETO_FRONTIER:
+    
+            (pf_runtime_orig, pf_bound_orig) = pareto_frontier(Xs=parallel_runtimes, Ys=parallel_bounds, maxX=False, maxY=False)
+            plt.plot(pf_runtime_orig, pf_bound_orig, '*--', c=color_list[color_idx], label=labels_list[color_idx])        
+        
+            #fig = plt.figure()
+            #ax = plt.subplot(111)
+            #ax.plot(pf_runtime_orig, pf_bound_orig, '--r+', label='IID LDPC Matrix', markersize=15)
+#   
+            #ax.plot(pf_runtime_regular, pf_bound_regular, '--r2', label='Regular LDPC Matrix', markersize=15)
+    
+            #plt.xlabel('Parallel Runtime (units: runtime without parity constraints)', fontsize=14)
+            #plt.ylabel('Lower Bound on ln(Set Size)', fontsize=14)
+            #plt.title('Lower Bounds on Set Size of Model %s' % PROBLEM_NAME, fontsize=20)
+            #plt.legend(fontsize=12)    
+            #make the font bigger
+            matplotlib.rcParams.update({'font.size': 30})        
+    
+            plt.grid(True)
+            # Shrink current axis's height by 10% on the bottom
+            #box = ax.get_position()
+            #ax.set_position([box.x0, box.y0 + box.height * 0.1,
+            #                 box.width, box.height * 0.9])
+            #fig.savefig('/Users/jkuck/Downloads/temp.png', bbox_extra_artists=(lgd,), bbox_inches='tight')    
+    
+            #plt.show()
+
+        PLOT_PARALLEL_CONVEX_HULLS = False
         if PLOT_PARALLEL_CONVEX_HULLS:
             #plot convex hull of points from original method
             original_points = np.array(zip(parallel_runtimes,parallel_bounds))
@@ -593,37 +683,64 @@ def plot_UBvsRuntime():
                         bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
                         arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color=color_list[color_idx]))
      
-    plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='ground truth ln(set size)') 
-    plt.xlabel('parallel runtime (units: mean unperturbed runtime on machine averaged over 10 trials)')
-    plt.ylabel('bound on ln(set size)')
-    plt.legend()    
+    plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='Ground Truth ln(Set Size)') 
+    plt.xlabel('Parallel Runtime (units: runtime without parity constraints)')
+    plt.ylabel('Upper Bound on ln(Set Size)')
+    plt.title('Upper Bounds on Set Size of Model %s' % PROBLEM_NAME, fontsize=20)
+    plt.legend(fontsize=12)    
     plt.show()
 
 
 
 if __name__=="__main__":
+#    n = 100
+#    f = .05
+#    m=10
+#    k=50
+#
+#    print 'Tri code'
+#    #for (m) in [(150)]:
+#    start_time = time.time()        
+#    satProblem = upperBoundSATCount(n=n, m=m, f=f, deterministicK1_permutation=False, only_even_w=False, k=k, USE_TRIS_CODE=True)        
+#    print 'n =', n, 'm =', m, 'f =', f, 'k =', k, 'upper bound =', math.log(satProblem.upper_bound_expected(m=m))/math.log(2)
+#    end_time = time.time()        
+#    print 'time:', end_time - start_time
+#    print 
+#    exit(0)
+
     plot_UBvsRuntime()
     exit(0)
-
-    n = 1000
-    f = .06
-    m = 20
-    for k in range(0, 51):
-        f_prime = (n*f - k)/(n-2*k)
-        print 'Tri code'
-        #for (m) in [(150)]:
-        start_time = time.time()        
-        satProblem = upperBoundSATCount(n=n, m=m, f=f_prime, deterministicK1_permutation=False, only_even_w=False, k=k, USE_TRIS_CODE=True)        
-        print 'n =', n, 'm =', m, 'f =', f_prime, 'k =', k, 'upper bound =', math.log(satProblem.upper_bound_expected(m=m))/math.log(2)
-        end_time = time.time()        
-        print 'time:', end_time - start_time
-
-    exit(0)
+#
+#    n = 1000
+#    f = .06
+#    m = 20
+#    for k in range(0, 51):
+#        f_prime = (n*f - k)/(n-2*k)
+#        print 'Tri code'
+#        #for (m) in [(150)]:
+#        start_time = time.time()        
+#        satProblem = upperBoundSATCount(n=n, m=m, f=f_prime, deterministicK1_permutation=False, only_even_w=False, k=k, USE_TRIS_CODE=True)        
+#        print 'n =', n, 'm =', m, 'f =', f_prime, 'k =', k, 'upper bound =', math.log(satProblem.upper_bound_expected(m=m))/math.log(2)
+#        end_time = time.time()        
+#        print 'time:', end_time - start_time
+#
+#    exit(0)
 
     n = 300
     f = .05
-    m=50
-    k=6
+    m=150
+    k=2
+
+    print 'Tri code'
+    #for (m) in [(150)]:
+    start_time = time.time()        
+    satProblem = upperBoundSATCount(n=n, m=m, f=f, deterministicK1_permutation=False, only_even_w=False, k=k, USE_TRIS_CODE=True)        
+    print 'n =', n, 'm =', m, 'f =', f, 'k =', k, 'upper bound =', math.log(satProblem.upper_bound_expected(m=m))/math.log(2)
+    end_time = time.time()        
+    print 'time:', end_time - start_time
+    print 
+
+    exit(0)
 
     print 'orig, k=0'
     start_time = time.time()
@@ -642,14 +759,6 @@ if __name__=="__main__":
     print 
 
 
-    print 'Tri code'
-    #for (m) in [(150)]:
-    start_time = time.time()        
-    satProblem = upperBoundSATCount(n=n, m=m, f=f, deterministicK1_permutation=False, only_even_w=False, k=k, USE_TRIS_CODE=True)        
-    print 'n =', n, 'm =', m, 'f =', f, 'k =', k, 'upper bound =', math.log(satProblem.upper_bound_expected(m=m))/math.log(2)
-    end_time = time.time()        
-    print 'time:', end_time - start_time
-    print 
 
     ####no need to save cach with Tri's new super fast implementation
     ###cache some more values

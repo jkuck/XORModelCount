@@ -1,4 +1,5 @@
 from __future__ import division
+import matplotlib
 from matplotlib import pyplot as plt
 import numpy as np; np.random.seed(0)
 import seaborn as sns; sns.set()
@@ -9,6 +10,8 @@ import math
 from scipy.spatial import ConvexHull
 from adjustText import adjust_text
 import os
+from file_helpers import read_files_moreInfo_newFormat
+
 #random_file = 'SATModelCount/result/speed20.txt'
 #regular_file = 'SATModelCount/result/rspeed20.txt'
 #random_file = 'result/speed20.txt'
@@ -43,21 +46,25 @@ permutedBlockDiag_filebase = 'heatmap_result_fireworksWED/permutedBlockDiagDeter
 regular_filebase = 'heatmap_result_fireworksWED/blockDiagDeterministic_speed_REPEATS=%d_%s_duplicates=0_expIdx=' % (REPEATS, PROBLEM_NAME)
 original_filebase = 'heatmap_result_fireworksWED/speed_REPEATS=%d_%s_duplicates=0_expIdx=' % (REPEATS, PROBLEM_NAME)
 
-REPEATS = 10 #repitions of each (m, f) run during an experiment on a single machine
-PROBLEM_NAME = 'lang12'
+REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
+PROBLEM_NAME = 'c432'
 original_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 regular_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=False_k=None_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=None_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
+REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
+PROBLEM_NAME = 'c432'
+original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
 USE_MULTIPLE_FILES = True #aggregate results from multiple files if true
 FILE_COUNT = 10 #number of experiments run on possible different machines
-PLOT_BLOCK_DIAG = True
+PLOT_BLOCK_DIAG = False
 PLOT_BLOCK_DIAG_PERMUTED = True
 PLOT_PERMUTATION_K1 = False
 
 PLOT_ACTUAL_POINTS = False 
-ANNOTATE_PLOTS = False
+ANNOTATE_PLOTS = True
 
 log_2_Z = { 'c432': 36.1,
             'c499': 41.0,
@@ -76,6 +83,14 @@ log_2_Z = { 'c432': 36.1,
             'log-1': 69.0,
             'log-2': 34.9,
             'lang12': -1,
+            'hypercube': 90,
+            'hypercube1': 50,
+            'hypercube2': 10,
+            'hypercube3': 10,
+            'hypercube4': 20,
+            'hypercube5': 50,
+            'hypercube6': 100,
+            'hypercube7': 500,
             }
 
 
@@ -198,7 +213,7 @@ def read_files_moreInfo(filename_base, repeats, file_count):
     for exp_idx in range(file_count):
         cur_filename = '%s%d.txt' % (filename_base, exp_idx)
         if os.path.isfile(cur_filename):        
-            print "reading file:", cur_filename
+#            print "reading file:", cur_filename
             reader = open(cur_filename, 'r')
             while True:
                 line = reader.readline().split()
@@ -242,14 +257,15 @@ def read_files_moreInfo(filename_base, repeats, file_count):
 
     sorted_m_vals = sorted(m_vals)
     sorted_f_vals = sorted(f_vals)
-    print m_vals
-    print sorted_m_vals
+    #print m_vals
+    #print sorted_m_vals
     num_SAT = np.zeros((len(sorted_f_vals), len(sorted_m_vals)))
     num_UNSAT = np.zeros((len(sorted_f_vals), len(sorted_m_vals)))
     num_TIMEOUT = np.zeros((len(sorted_f_vals), len(sorted_m_vals)))
 
     for (m_idx, m_val) in enumerate(sorted_m_vals):
         for (f_idx, f_val) in enumerate(sorted_f_vals):
+            #print 'm:', m_val, 'f:', f_val, "num_trials:", num_trials_dict[(f_val, m_val)]
             SAT_runtimes[(f_val, m_val)].sort()
             UNSAT_runtimes[(f_val, m_val)].sort()
             num_SAT[f_idx, m_idx] = num_SAT_dict[(f_val, m_val)]
@@ -263,12 +279,183 @@ def read_files_moreInfo(filename_base, repeats, file_count):
     return(sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict)
 
 
+
+
+def get_best_bounds_by_runtime(filename_base, runtime_cutoffs, new_format=True):
+    if new_format:
+        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict, f_prime_dict, k_dict) = \
+        read_files_moreInfo_newFormat(filename_base=filename_base, repeats=REPEATS, file_count=FILE_COUNT)        
+    else:
+        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict) = \
+        read_files_moreInfo(filename_base=filename_base, repeats=REPEATS, file_count=FILE_COUNT)
+
+    bounds = []
+    runtimes = []
+
+    for (m_idx, m_val) in enumerate(sorted_m_vals):
+        for (f_idx, f_val) in enumerate(sorted_f_vals):
+#            print "m =", m_val, "f =", f_val
+            assert(float(int(int(num_SAT[f_idx, m_idx]))) == num_SAT[f_idx, m_idx])
+            (parallel_bounds, parallel_runtimes, sat_over_trials_parallel, satUsed_over_totalSat_parallel, \
+                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT[f_idx, m_idx]), T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val])
+            bounds.extend(parallel_bounds)
+            runtimes.extend(parallel_runtimes)
+
+    assert(len(runtimes) == len(bounds))
+    best_bounds = {}
+    for runtime_cutoff in runtime_cutoffs:
+        best_bounds[runtime_cutoff] = -1
+    for (idx, runtime) in enumerate(runtimes):
+#        print 'runtime =', runtime
+        for runtime_cutoff in runtime_cutoffs:
+#            print runtime_cutoff
+            if runtime < runtime_cutoff:
+#                print 'runtime is less than runtime cutoff'
+                if (best_bounds[runtime_cutoff] == -1) or (bounds[idx] > best_bounds[runtime_cutoff]):
+#                    print 'setting best_bounds[runtime_cutoff] = ', bounds[idx]
+                    best_bounds[runtime_cutoff] = bounds[idx]
+#                    print best_bounds
+#    print best_bounds
+    return best_bounds
+
+var_counts = {
+                "log-1" : 939,
+                "log-2" : 1337,
+                "log-3" : 1413,
+                "log-4" : 2303,
+                "log-5" : 2701,
+                "tire-1" : 352,
+                "tire-2" : 550,
+                "tire-3" : 577,
+                "tire-4" : 812,
+                "ra" : 1236,
+                "rb" : 1854,
+                "rc" : 2472,
+                "sat-grid-pbl-0010" : 110,
+                "sat-grid-pbl-0015" : 240,
+                "sat-grid-pbl-0020" : 420,
+                "sat-grid-pbl-0025" : 650,
+                "sat-grid-pbl-0030" : 930,
+                "c432" : 196,
+                "c499" : 243,
+                "c880" : 417,
+                "c1355" : 555,
+                "c1908" : 751,
+                "c2670" : 1230,
+                "c7552" : 3185,
+                "lang12" : 576,
+                "wff.3.150.525" : 150,
+                'hypercube': 100,
+                'hypercube1': 100,
+                'hypercube2': 100,                
+            }
+
+clause_counts = {
+                "log-1" : 3785,
+                "log-2" : 24777,
+                "log-3" : 29487,
+                "log-4" : 20963,
+                "log-5" : 29534,
+                "tire-1" : 1038,
+                "tire-2" : 2001,
+                "tire-3" : 2004,
+                "tire-4" : 3222,
+                "ra" : 11416,
+                "rb" : 11324,
+                "rc" : 17942,
+                "sat-grid-pbl-0010" : 191,
+                "sat-grid-pbl-0015" : 436,
+                "sat-grid-pbl-0020" : 781,
+                "sat-grid-pbl-0025" : 1226,
+                "sat-grid-pbl-0030" : 1771,
+                "c432" : 514,
+                "c499" : 714,
+                "c880" : 1060,
+                "c1355" : 1546,
+                "c1908" : 2053,
+                "c2670" : 2876,
+                "c7552" : 8588,
+                "lang12" : 576,      
+                "wff.3.150.525" : 150,
+                'hypercube': 10,
+                'hypercube1': 50,
+                'hypercube2': 90,                
+            }
+
+def pareto_frontier(Xs, Ys, maxX=True, maxY=True):
+    #http://code.activestate.com/recipes/578230-pareto-front/
+    myList = sorted([[Xs[i], Ys[i]] for i in range(len(Xs))], reverse=maxX)
+    p_front = [myList[0]]    
+    for pair in myList[1:]:
+        if maxY: 
+            if pair[1] >= p_front[-1][1]:
+                p_front.append(pair)
+        else:
+            if pair[1] <= p_front[-1][1]:
+                p_front.append(pair)
+    p_frontX = [pair[0] for pair in p_front]
+    p_frontY = [pair[1] for pair in p_front]
+    return p_frontX, p_frontY
+
+
+def print_summary_table(problem_names, runtime_cutoffs, print_ratio=False):
+    ##### make a summary table #####
+    if print_ratio:
+        print "\multicolumn{4}{c|}{Model Information} &\multicolumn{3}{c|}{1x Runtime} & \multicolumn{3}{c|}{2x Runtime} & \multicolumn{3}{c|}{10x Runtime} & \multicolumn{3}{c|}{100x Runtime} & \multicolumn{3}{c}{1000x Runtime}\\\\"
+        print "Model Name & \#Variables& \#Clauses & ln(Z)& Ours &  Baseline & Ratio &  Ours &  Baseline & Ratio &  Ours &  Baseline & Ratio &  Ours &  Baseline & Ratio &  Ours &  Baseline & Ratio \\\\\midrule"
+    else:
+        print "\multicolumn{4}{c|}{Model Information} &\multicolumn{2}{c|}{1x Runtime} & \multicolumn{2}{c|}{10x Runtime} & \multicolumn{2}{c|}{100x Runtime} & \multicolumn{2}{c}{1000x Runtime}\\\\"
+        print "Model Name & \#Variables& \#Clauses & ln(Z) &  Ours &  Baseline &  Ours &  Baseline &  Ours &  Baseline &  Ours &  Baseline \\\\\midrule"
+
+    for problem_name in problem_names:
+        baseline_filebase = 'heatmap_result_fireworksTIMEOUT_3_9/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
+        our_filebase = 'heatmap_result_fireworksTIMEOUT_3_9/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
+
+        baseline_bounds_by_runtime = get_best_bounds_by_runtime(baseline_filebase, runtime_cutoffs)
+        our_bounds_by_runtime = get_best_bounds_by_runtime(our_filebase, runtime_cutoffs)
+
+        if log_2_Z[problem_name] == -1:
+            print "     %s             & %d                  & %d & --" % (problem_name, var_counts[problem_name], clause_counts[problem_name]),            
+        else:
+            print "     %s             & %d                  & %d & %.1f" % (problem_name, var_counts[problem_name], clause_counts[problem_name], math.log(2)*log_2_Z[problem_name]),
+        for runtime_cutoff in runtime_cutoffs:
+            if baseline_bounds_by_runtime[runtime_cutoff] == -1 and our_bounds_by_runtime[runtime_cutoff] == -1:
+                print "& --      & --",
+            elif baseline_bounds_by_runtime[runtime_cutoff] >= our_bounds_by_runtime[runtime_cutoff]:
+                if our_bounds_by_runtime[runtime_cutoff] == -1:
+                    print "& --      & \\textbf{%.1f}" % (baseline_bounds_by_runtime[runtime_cutoff]),
+                else:
+                    print "& %.1f      & \\textbf{%.1f}" % (our_bounds_by_runtime[runtime_cutoff], baseline_bounds_by_runtime[runtime_cutoff]),
+            else:
+                if baseline_bounds_by_runtime[runtime_cutoff] == -1:
+                    print "& \\textbf{%.1f}      & --" % (our_bounds_by_runtime[runtime_cutoff]),
+                else:
+                    print "& \\textbf{%.1f}      & %.1f" % (our_bounds_by_runtime[runtime_cutoff], baseline_bounds_by_runtime[runtime_cutoff]),
+
+        #print type((math.log(2)*log_2_Z[problem_name] - baseline_bounds_by_runtime[runtime_cutoff]))
+        #print type((math.log(2)*log_2_Z[problem_name] - our_bounds_by_runtime[runtime_cutoff]))
+        #a = (math.log(2)*log_2_Z[problem_name] - baseline_bounds_by_runtime[runtime_cutoff])/(math.log(2)*log_2_Z[problem_name] - our_bounds_by_runtime[runtime_cutoff])
+        #print a
+            if print_ratio:
+                if log_2_Z[problem_name] == -1 or baseline_bounds_by_runtime[runtime_cutoff] == -1 or our_bounds_by_runtime[runtime_cutoff] == -1:
+                    print "& -- ",
+                else:
+                    print "& %.1f " % ((math.log(2)*log_2_Z[problem_name] - baseline_bounds_by_runtime[runtime_cutoff])/(math.log(2)*log_2_Z[problem_name] - our_bounds_by_runtime[runtime_cutoff])),
+        print "\\\\"
+#        print "%s \t \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t" % (problem_name, baseline_bounds_by_runtime[1], our_bounds_by_runtime[1],\
+#            baseline_bounds_by_runtime[2], our_bounds_by_runtime[2], baseline_bounds_by_runtime[10], our_bounds_by_runtime[10], baseline_bounds_by_runtime[100], our_bounds_by_runtime[100], \
+#            baseline_bounds_by_runtime[1000], our_bounds_by_runtime[1000])
 if __name__=="__main__":
 
-    ##### original randomness #####
+    runtime_cutoffs = [1, 10, 100]    
+    problem_names =  ['tire-1', 'tire-2', 'tire-3', 'tire-4', 'c432', 'c499', 'c880', 'c1355', 'c1908', 'c2670', 'sat-grid-pbl-0010', 'sat-grid-pbl-0015', 'sat-grid-pbl-0020', 'log-1', 'log-2', 'ra', 'lang12', 'hypercube', 'hypercube1', 'hypercube2']
+#    print_summary_table(problem_names=problem_names, runtime_cutoffs=runtime_cutoffs, print_ratio=False)
+#    exit(0)
 
+
+    ##### original randomness #####
     if USE_MULTIPLE_FILES: 
-        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict) = read_files_moreInfo(filename_base=original_filebase, repeats=REPEATS, file_count=FILE_COUNT)
+        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict, f_prime_dict, k_dict) = read_files_moreInfo_newFormat(filename_base=original_filebase, repeats=REPEATS, file_count=FILE_COUNT)
     else:
         (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict) = read_file(random_file, repeats=REPEATS)
 
@@ -341,7 +528,7 @@ if __name__=="__main__":
 
     ##### permuted block diagonal + randomness #####
     if USE_MULTIPLE_FILES:
-        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict) = read_files_moreInfo(filename_base=permutedBlockDiag_filebase, repeats=REPEATS, file_count=FILE_COUNT)
+        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict, f_prime_dict, k_dict) = read_files_moreInfo_newFormat(filename_base=permutedBlockDiag_filebase, repeats=REPEATS, file_count=FILE_COUNT)
     else:
         (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict) = read_file(permutedBlockDiag_file, repeats=REPEATS)    
 
@@ -374,14 +561,48 @@ if __name__=="__main__":
             permutedBlockDiag_satUsed_over_totalSat_parallel.extend(satUsed_over_totalSat_parallel)
             permutedBlockDiag_sat_over_trials_sequential.extend(sat_over_trials_sequential)
 
+
     if PLOT_ACTUAL_POINTS:
         plt.scatter(all_original_parallel_runtimes, all_original_parallel_bounds, marker='+', c='b')
-        plt.scatter(all_blockDiag_parallel_runtimes, all_blockDiag_parallel_bounds, marker='+', c='r')
+        #plt.scatter(all_blockDiag_parallel_runtimes, all_blockDiag_parallel_bounds, marker='+', c='r')
         plt.scatter(all_permutedBlockDiag_parallel_runtimes, all_permutedBlockDiag_parallel_bounds, marker='+', c='g')
         plt.xlabel('parallel runtime (units: mean unperturbed runtime on machine averaged over 10 trials)')
-        plt.ylabel('bound on ln(set size)')
+        plt.ylabel('Lower Bound on ln(Set Size)')
         plt.legend()
     #    plt.show()
+
+    PLOT_PARETO_FRONTIER = True
+    if PLOT_PARETO_FRONTIER:
+
+        (pf_runtime_orig, pf_bound_orig) = pareto_frontier(Xs=all_original_parallel_runtimes, Ys=all_original_parallel_bounds, maxX=False, maxY=True)
+        plt.plot(pf_runtime_orig, pf_bound_orig, '*--', c='b', label='IID LDPC Matrix')        
+
+
+        (pf_runtime_regular, pf_bound_regular) = pareto_frontier(Xs=all_permutedBlockDiag_parallel_runtimes, Ys=all_permutedBlockDiag_parallel_bounds, maxX=False, maxY=True)
+        plt.plot(pf_runtime_regular, pf_bound_regular, '*--', c='g', label='Regular LDPC Matrix')
+
+        #fig = plt.figure()
+        #ax = plt.subplot(111)
+        #ax.plot(pf_runtime_orig, pf_bound_orig, '--r+', label='IID LDPC Matrix', markersize=15)
+#
+        #ax.plot(pf_runtime_regular, pf_bound_regular, '--r2', label='Regular LDPC Matrix', markersize=15)
+
+        plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='Ground Truth ln(Set Size)') 
+        plt.xlabel('Parallel Runtime (units: runtime without parity constraints)', fontsize=14)
+        plt.ylabel('Lower Bound on ln(Set Size)', fontsize=14)
+        plt.title('Lower Bounds on Set Size of Model %s' % PROBLEM_NAME, fontsize=20)
+        plt.legend(fontsize=12)    
+        #make the font bigger
+        matplotlib.rcParams.update({'font.size': 10})        
+
+        plt.grid(True)
+        # Shrink current axis's height by 10% on the bottom
+        #box = ax.get_position()
+        #ax.set_position([box.x0, box.y0 + box.height * 0.1,
+        #                 box.width, box.height * 0.9])
+        #fig.savefig('/Users/jkuck/Downloads/temp.png', bbox_extra_artists=(lgd,), bbox_inches='tight')    
+
+        plt.show()
 
     PLOT_PARALLEL_CONVEX_HULLS = True
     if PLOT_PARALLEL_CONVEX_HULLS:
@@ -393,7 +614,7 @@ if __name__=="__main__":
             print "simplex:", simplex
             print "type(simplex):", type(simplex)
             if idx == 0: #add the label to the legend
-                plt.plot(original_points[simplex, 0], original_points[simplex, 1], '*--', c='b', label='original')
+                plt.plot(original_points[simplex, 0], original_points[simplex, 1], '*--', c='b', label='IID LDPC Matrix')
             else:
                 plt.plot(original_points[simplex, 0], original_points[simplex, 1], '*--', c='b')
             if ANNOTATE_PLOTS:
@@ -416,42 +637,42 @@ if __name__=="__main__":
                     textcoords='offset points', ha='right', va='bottom', color='b',
                     bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
                     arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='b'))
-        
-        #plot convex hull of points from block diagonal method
-        blockDiag_points = np.array(zip(all_blockDiag_parallel_runtimes,all_blockDiag_parallel_bounds))
-        blockDiag_hull = ConvexHull(blockDiag_points)
-        for (idx, simplex) in enumerate(blockDiag_hull.simplices):
-            if idx == 0:
-                plt.plot(blockDiag_points[simplex, 0], blockDiag_points[simplex, 1], '*--', c='r', label='block diagonal')
-            else:
-                plt.plot(blockDiag_points[simplex, 0], blockDiag_points[simplex, 1], '*--', c='r')
-            if ANNOTATE_PLOTS:
-                m_val0 = parallel_blockDiag_M_F[simplex[0]][0]
-                f_val0 = parallel_blockDiag_M_F[simplex[0]][1]
-
-                m_val1 = parallel_blockDiag_M_F[simplex[1]][0]
-                f_val1 = parallel_blockDiag_M_F[simplex[1]][1]
-                plt.annotate(
-                    'm:%d,f:%.3f,T:%d,c:%.2f,%%c:%.2f' % (m_val0, f_val0, all_blockDiag_num_trials[(f_val0, m_val0)], \
-                        blockDiag_sat_over_trials_parallel[simplex[0]], blockDiag_satUsed_over_totalSat_parallel[simplex[0]]),
-                    xy=(blockDiag_points[simplex[0], 0], blockDiag_points[simplex[0], 1]), xytext=(-20, 20),
-                    textcoords='offset points', ha='right', va='bottom', color='r',
-                    bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-                    arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='r'))
-                plt.annotate(
-                    'm:%d,f:%.3f,T:%d,c:%.2f,%%c:%.2f'% (m_val1, f_val1, all_blockDiag_num_trials[(f_val1, m_val1)], \
-                        blockDiag_sat_over_trials_parallel[simplex[1]], blockDiag_satUsed_over_totalSat_parallel[simplex[1]]),
-                    xy=(blockDiag_points[simplex[1], 0], blockDiag_points[simplex[1], 1]), xytext=(-20, 20),
-                    textcoords='offset points', ha='right', va='bottom', color='r',
-                    bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-                    arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='r'))
+        if PLOT_BLOCK_DIAG:
+            #plot convex hull of points from block diagonal method
+            blockDiag_points = np.array(zip(all_blockDiag_parallel_runtimes,all_blockDiag_parallel_bounds))
+            blockDiag_hull = ConvexHull(blockDiag_points)
+            for (idx, simplex) in enumerate(blockDiag_hull.simplices):
+                if idx == 0:
+                    plt.plot(blockDiag_points[simplex, 0], blockDiag_points[simplex, 1], '*--', c='r', label='block diagonal')
+                else:
+                    plt.plot(blockDiag_points[simplex, 0], blockDiag_points[simplex, 1], '*--', c='r')
+                if ANNOTATE_PLOTS:
+                    m_val0 = parallel_blockDiag_M_F[simplex[0]][0]
+                    f_val0 = parallel_blockDiag_M_F[simplex[0]][1]
+    
+                    m_val1 = parallel_blockDiag_M_F[simplex[1]][0]
+                    f_val1 = parallel_blockDiag_M_F[simplex[1]][1]
+                    plt.annotate(
+                        'm:%d,f:%.3f,T:%d,c:%.2f,%%c:%.2f' % (m_val0, f_val0, all_blockDiag_num_trials[(f_val0, m_val0)], \
+                            blockDiag_sat_over_trials_parallel[simplex[0]], blockDiag_satUsed_over_totalSat_parallel[simplex[0]]),
+                        xy=(blockDiag_points[simplex[0], 0], blockDiag_points[simplex[0], 1]), xytext=(-20, 20),
+                        textcoords='offset points', ha='right', va='bottom', color='r',
+                        bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+                        arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='r'))
+                    plt.annotate(
+                        'm:%d,f:%.3f,T:%d,c:%.2f,%%c:%.2f'% (m_val1, f_val1, all_blockDiag_num_trials[(f_val1, m_val1)], \
+                            blockDiag_sat_over_trials_parallel[simplex[1]], blockDiag_satUsed_over_totalSat_parallel[simplex[1]]),
+                        xy=(blockDiag_points[simplex[1], 0], blockDiag_points[simplex[1], 1]), xytext=(-20, 20),
+                        textcoords='offset points', ha='right', va='bottom', color='r',
+                        bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+                        arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='r'))
         
         #plot convex hull of points from permuted block diagonal method
         permutedBlockDiag_points = np.array(zip(all_permutedBlockDiag_parallel_runtimes, all_permutedBlockDiag_parallel_bounds))
         permutedBlockDiag_hull = ConvexHull(permutedBlockDiag_points)
         for (idx, simplex) in enumerate(permutedBlockDiag_hull.simplices):
             if idx == 0:
-                plt.plot(permutedBlockDiag_points[simplex, 0], permutedBlockDiag_points[simplex, 1], '*--', c='g', label='permuted block diagonal')
+                plt.plot(permutedBlockDiag_points[simplex, 0], permutedBlockDiag_points[simplex, 1], '*--', c='g', label='Regular LDPC Matrix')
             else:
                 plt.plot(permutedBlockDiag_points[simplex, 0], permutedBlockDiag_points[simplex, 1], '*--', c='g')
             if ANNOTATE_PLOTS:
@@ -475,13 +696,16 @@ if __name__=="__main__":
                     bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
                     arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='g'))
 
-        plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='ground truth ln(set size)') 
-        plt.xlabel('parallel runtime (units: mean unperturbed runtime on machine averaged over 10 trials)')
-        plt.ylabel('bound on ln(set size)')
-        plt.title('minTrialsOrig=%d, minTrialsBlockDiag=%d, minTrialsPermBlockDiag=%d' % (all_original_num_trials[min(all_original_num_trials, key = lambda x: all_original_num_trials.get(x))],
-                                                                                          all_blockDiag_num_trials[min(all_blockDiag_num_trials, key = lambda x: all_blockDiag_num_trials.get(x))],
-                                                                                          all_permutedBlockDiag_num_trials[min(all_permutedBlockDiag_num_trials, key = lambda x: all_permutedBlockDiag_num_trials.get(x))]))
-        plt.legend()    
+        plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='Ground Truth ln(Set Size)') 
+        plt.xlabel('Parallel Runtime (units: runtime without parity constraints)', fontsize=14)
+        plt.ylabel('Lower Bound on ln(Set Size)', fontsize=14)
+        plt.title('Lower Bounds on Model %s' % PROBLEM_NAME, fontsize=20)
+        #plt.title('minTrialsOrig=%d, minTrialsBlockDiag=%d, minTrialsPermBlockDiag=%d' % (all_original_num_trials[min(all_original_num_trials, key = lambda x: all_original_num_trials.get(x))],
+        #                                                                                  all_blockDiag_num_trials[min(all_blockDiag_num_trials, key = lambda x: all_blockDiag_num_trials.get(x))],
+        #                                                                                  all_permutedBlockDiag_num_trials[min(all_permutedBlockDiag_num_trials, key = lambda x: all_permutedBlockDiag_num_trials.get(x))]))
+        plt.legend(fontsize=12)    
+        #make the font bigger
+        matplotlib.rcParams.update({'font.size': 10})        
         plt.show()
         
 

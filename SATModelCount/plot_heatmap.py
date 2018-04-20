@@ -42,6 +42,18 @@ original_filebase = 'heatmap_result_fireworksTIMEOUTallFcorrected/%s/f_block=1_p
 regular_filebase = 'heatmap_result_fireworksTIMEOUTallF/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=3_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
+REPEATS = 10
+PROBLEM_NAME = 'hypercube2'
+original_filebase = 'heatmap_result_fireworksTIMEOUT_fDensity/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+regular_filebase = 'heatmap_result_fireworksTIMEOUT_fDensity/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=3_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+
+REPEATS = 10 #repitions of each (m, f) run during an experiment on a single machine
+PROBLEM_NAME = 'c432'
+original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+
+
 #REPEATS = 10
 #PROBLEM_NAME = 'c432'
 #original_filebase = 'heatmap_result_fireworksTIMEOUT/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
@@ -115,7 +127,29 @@ def read_file(filename, repeats):
             fraction_SAT[f_idx, m_idx] = np.mean(problem_satisfied[(f_val, m_val)])
     return(sorted_m_vals, sorted_f_vals, mean_runtimes, fraction_SAT)
 
-def read_files(filename_base, repeats, file_count, convert_origF_to_TriF=False, printF_below = 99):
+def round_to_1(x):
+    return round(x, -int(math.floor(math.log10(abs(x)))))
+
+def round_to_2(x):
+    return round(x, -int(math.floor(math.log10(abs(x))))+1)    
+
+def get_n(problem_name):
+    problem_filename = "/Users/jkuck/research/winter_2018/low_density_parity_checks/SAT_problems_cnf/%s.cnf" % problem_name
+
+    f = open(problem_filename, 'r')
+    for line in f:
+        if line[0] == 'p': #parameters line
+            params = line.split()
+            assert(params[1] == 'cnf') #we should be reading an unweighted SAT problem
+            nbvar = int(params[2]) #number of variables
+            break            
+        else:
+            assert(line[0] == 'c')
+    f.close()
+
+    return nbvar
+
+def read_files(filename_base, repeats, file_count, convert_origF_to_TriF=False, f_geq=-1, printF_below = 99, m_below=np.inf):
     '''
 
     Inputs:
@@ -138,6 +172,7 @@ def read_files(filename_base, repeats, file_count, convert_origF_to_TriF=False, 
     problem_unsatisfied = defaultdict(list)    
     f_vals = set()
     m_vals = set()
+    n = get_n(PROBLEM_NAME)
 
     mean_unperturbed_run_time = 999999999
     for exp_idx in range(file_count):
@@ -151,14 +186,19 @@ def read_files(filename_base, repeats, file_count, convert_origF_to_TriF=False, 
                     if len(line) == 8 and line[7] == 'None':
                         #problem timed out
                         f = float(line[1])
-                        if f>=printF_below:
-                            continue
                         m = int(line[5])   
+                        if f>=printF_below or f<f_geq or m>=m_below:
+                            continue
+
                         if convert_origF_to_TriF:
                             n=196
                             k = math.floor(n/m)                     
-                            tri_f = np.round((f*n - k)/(n - 2*k), 3)
-                            print 'origF =', f, 'tri_f =', tri_f
+                            tri_f = (f*n - k)/(n - 2*k)
+                            if tri_f < .1:
+                                tri_f = round_to_1(tri_f)
+                            else:
+                                tri_f = round_to_2(tri_f)
+                            print 'origF =', f, 'tri_f =', tri_f, 'k =', k
                             f=tri_f
                         m_vals.add(m)
                         f_vals.add(f)
@@ -176,16 +216,19 @@ def read_files(filename_base, repeats, file_count, convert_origF_to_TriF=False, 
                         break
         
                 f = float(line[1])
-                if f>=printF_below:
-                    continue
                 run_time = float(line[8][0:-1])
                 norm_runtime = run_time/mean_unperturbed_run_time
                 m = int(line[5])
+                if f>=printF_below or f<f_geq or m>=m_below:
+                    continue                
                 if convert_origF_to_TriF:
-                    n=196
                     k = math.floor(n/m)                     
-                    tri_f = np.round((f*n - k)/(n - 2*k), 3)
-                    print 'origF =', f, 'tri_f =', tri_f
+                    unrounded_tri_f = (f*n - k)/(n - 2*k)
+                    if unrounded_tri_f < .1:
+                        tri_f = round_to_1(unrounded_tri_f)
+                    else:
+                        tri_f = round_to_2(unrounded_tri_f)
+                    print 'origF =', f, 'unrounded_tri_f=', unrounded_tri_f, 'tri_f =', tri_f, 'k =', k
                     f=tri_f
 
                 if norm_runtime > MAX_TIMEOUT_MULTIPLE:
@@ -245,8 +288,16 @@ if __name__=="__main__":
 
     ##### original randomness #####
     if USE_MULTIPLE_FILES: 
-        (sorted_m_vals, sorted_f_vals, mean_runtimes_orig, fraction_SAT_orig, fraction_UNSAT) = \
-            read_files(filename_base=original_filebase, repeats=REPEATS, file_count=FILE_COUNT, convert_origF_to_TriF=True)
+#        (sorted_m_vals, sorted_f_vals, mean_runtimes_orig, fraction_SAT_orig, fraction_UNSAT) = \
+#            read_files(filename_base=original_filebase, repeats=REPEATS, file_count=FILE_COUNT, convert_origF_to_TriF=True, f_geq=.001, printF_below=.5, m_below=99)
+        if new_format:
+            (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict, f_prime_dict, k_dict) = \
+            read_files_moreInfo_newFormat(filename_base=filename_base, repeats=REPEATS, file_count=FILE_COUNT)        
+        else:
+            (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict) = \
+            read_files_moreInfo(filename_base=filename_base, repeats=REPEATS, file_count=FILE_COUNT)
+
+
     else:
         (sorted_m_vals, sorted_f_vals, mean_runtimes_orig, fraction_SAT_orig, fraction_UNSAT) = read_file(random_file, repeats=REPEATS)
 
@@ -298,7 +349,7 @@ if __name__=="__main__":
         ##### block diagonal + randomness #####
         if USE_MULTIPLE_FILES:
             (sorted_m_vals, sorted_f_vals, mean_runtimes_diag, fraction_SAT_diag, fraction_UNSAT) = \
-            read_files(filename_base=regular_filebase, repeats=REPEATS, file_count=FILE_COUNT, printF_below = .15)
+            read_files(filename_base=regular_filebase, repeats=REPEATS, file_count=FILE_COUNT, f_geq=.001, printF_below=.5, m_below=99)
         else:
             (sorted_m_vals, sorted_f_vals, mean_runtimes_diag, fraction_SAT_diag, fraction_UNSAT) = read_file(regular_file, repeats=REPEATS)
         
@@ -322,9 +373,13 @@ if __name__=="__main__":
     PLOT_ORIG_BLOCK_DIAG_DIFF = True
     if PLOT_ORIG_BLOCK_DIAG_DIFF:
         percentChange_runtime = np.zeros(mean_runtimes_orig.shape)
+        print 'percentChange_runtime.shape', percentChange_runtime.shape
+        print 'mean_runtimes_diag.shape', mean_runtimes_diag.shape
+        print 'mean_runtimes_orig.shape', mean_runtimes_orig.shape
         for r in range(mean_runtimes_orig.shape[0]):
             for c in range(mean_runtimes_orig.shape[1]):
-                    percentChange_runtime[r,c] = (mean_runtimes_diag[r,c] - mean_runtimes_orig[r,c])/mean_runtimes_orig[r,c]
+                print 'r', r, 'c', c
+                percentChange_runtime[r,c] = (mean_runtimes_diag[r,c] - mean_runtimes_orig[r,c])/mean_runtimes_orig[r,c]
 
         plt.figure(1)
         plt.subplot(211)
@@ -338,7 +393,7 @@ if __name__=="__main__":
         percentChange_fractionSAT = np.zeros(fraction_SAT_orig.shape)
         for r in range(fraction_SAT_orig.shape[0]):
             for c in range(fraction_SAT_orig.shape[1]):
-                    percentChange_fractionSAT[r,c] = (fraction_SAT_diag[r,c] - fraction_SAT_orig[r,c])/fraction_SAT_orig[r,c]
+                percentChange_fractionSAT[r,c] = (fraction_SAT_diag[r,c] - fraction_SAT_orig[r,c])/fraction_SAT_orig[r,c]
 
         plt.subplot(212)
         ax = sns.heatmap(percentChange_fractionSAT, annot=SHOW_HEATMAP_VALS, xticklabels=sorted_m_vals, yticklabels=sorted_f_vals)
