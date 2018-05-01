@@ -242,6 +242,7 @@ class RunSpecificExperimentBatch(FireTaskBase):
         mean_runtime = total_time/REPEATS
         logger = open(filename, 'w')
         logger.write("mean_unperturbed_run_time= %f\n" % mean_runtime)
+        logger.write("MAX_TIMEOUT_MULTIPLE= %d\n" % MAX_TIMEOUT_MULTIPLE)
         logger.close()
 
         #for dup_copies in [0, 1, 3, 7, 15, 31, 63, 127]:

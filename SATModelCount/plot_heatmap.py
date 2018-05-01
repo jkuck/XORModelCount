@@ -5,6 +5,7 @@ import seaborn as sns; sns.set()
 from collections import defaultdict
 import os
 import math
+from file_helpers import read_files_moreInfo_newFormat
 
 #random_file = 'SATModelCount/result/speed20.txt'
 #regular_file = 'SATModelCount/result/rspeed20.txt'
@@ -36,22 +37,22 @@ permutedBlockDiag_filebase = 'heatmap_result_fireworksWED/permutedBlockDiagDeter
 regular_filebase = 'heatmap_result_fireworksWED/blockDiagDeterministic_speed_REPEATS=%d_%s_duplicates=0_expIdx=' % (REPEATS, PROBLEM_NAME)
 original_filebase = 'heatmap_result_fireworksWED/speed_REPEATS=%d_%s_duplicates=0_expIdx=' % (REPEATS, PROBLEM_NAME)
 
-REPEATS = 10
-PROBLEM_NAME = 'c432'
-original_filebase = 'heatmap_result_fireworksTIMEOUTallFcorrected/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
-regular_filebase = 'heatmap_result_fireworksTIMEOUTallF/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
-permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=3_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#REPEATS = 10
+#PROBLEM_NAME = 'c432'
+#original_filebase = 'heatmap_result_fireworksTIMEOUTallFcorrected/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#regular_filebase = 'heatmap_result_fireworksTIMEOUTallF/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=3_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#
+#REPEATS = 10
+#PROBLEM_NAME = 'hypercube2'
+#original_filebase = 'heatmap_result_fireworksTIMEOUT_fDensity/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#regular_filebase = 'heatmap_result_fireworksTIMEOUT_fDensity/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=3_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
-REPEATS = 10
-PROBLEM_NAME = 'hypercube2'
-original_filebase = 'heatmap_result_fireworksTIMEOUT_fDensity/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
-regular_filebase = 'heatmap_result_fireworksTIMEOUT_fDensity/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
-permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=3_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
-
-REPEATS = 10 #repitions of each (m, f) run during an experiment on a single machine
-PROBLEM_NAME = 'c432'
-original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
-permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+####REPEATS = 10 #repitions of each (m, f) run during an experiment on a single machine
+####PROBLEM_NAME = 'c432'
+####original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+####permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
 
 #REPEATS = 10
@@ -62,6 +63,7 @@ permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/
 
 
 USE_MULTIPLE_FILES = True #aggregate results from multiple files if true
+#NEW_FORMAT = True #extra information is stored in SAT results files
 FILE_COUNT = 10
 PLOT_BLOCK_DIAG = True
 PLOT_BLOCK_DIAG_PERMUTED = True
@@ -288,14 +290,14 @@ if __name__=="__main__":
 
     ##### original randomness #####
     if USE_MULTIPLE_FILES: 
-#        (sorted_m_vals, sorted_f_vals, mean_runtimes_orig, fraction_SAT_orig, fraction_UNSAT) = \
-#            read_files(filename_base=original_filebase, repeats=REPEATS, file_count=FILE_COUNT, convert_origF_to_TriF=True, f_geq=.001, printF_below=.5, m_below=99)
-        if new_format:
-            (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict, f_prime_dict, k_dict) = \
-            read_files_moreInfo_newFormat(filename_base=filename_base, repeats=REPEATS, file_count=FILE_COUNT)        
-        else:
-            (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict) = \
-            read_files_moreInfo(filename_base=filename_base, repeats=REPEATS, file_count=FILE_COUNT)
+        (sorted_m_vals, sorted_f_vals, mean_runtimes_orig, fraction_SAT_orig, fraction_UNSAT) = \
+            read_files(filename_base=original_filebase, repeats=REPEATS, file_count=FILE_COUNT, convert_origF_to_TriF=True, f_geq=.001, printF_below=.5, m_below=99)
+#        if NEW_FORMAT:
+#            (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict, f_prime_dict, k_dict) = \
+#            read_files_moreInfo_newFormat(filename_base=original_filebase, repeats=REPEATS, file_count=FILE_COUNT)        
+#        else:
+#            (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict) = \
+#            read_files_moreInfo(filename_base=filename_base, repeats=REPEATS, file_count=FILE_COUNT)
 
 
     else:
