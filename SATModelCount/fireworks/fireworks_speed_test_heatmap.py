@@ -21,7 +21,7 @@ from fw_tutorials.dynamic_wf.fibadd_task import FibonacciAdderTask
 
 from cluster_config import HOME_DIRECTORY, MONGODB_USERNAME, MONGODB_PASSWORD
 from experiment_config import MONGODB_HOST, MONGODB_PORT, MONGODB_NAME
-
+import numpy as np
 # Add the following line to the file ~/.bashrc.user on Atlas:
 # export PYTHONPATH="/atlas/u/jkuck/XORModelCount/SATModelCount:$PYTHONPATH"
 
@@ -39,7 +39,7 @@ from experiment_config import MONGODB_HOST, MONGODB_PORT, MONGODB_NAME
 MAX_TIME = 360 #max time to run a single SAT problem
 
 #used for RunSpecificExperimentBatch
-MAX_TIMEOUT_MULTIPLE = 100 #run at max MAX_TIMEOUT_MULTIPLE*unperturbed runtime
+MAX_TIMEOUT_MULTIPLE = 1000 #run at max MAX_TIMEOUT_MULTIPLE*unperturbed runtime
 
 m_ranges = {#'c432.isc': range(25, 42), #log_2(Z) = 36.1
             'c432.isc': range(25, 46), #log_2(Z) = 36.1
@@ -235,7 +235,7 @@ class RunExperimentBatch(FireTaskBase):
 @explicit_serialize
 class RunSpecificExperimentBatch(FireTaskBase):   
     def run_task(self, fw_spec):
-        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/heatmap_result_fireworksTIMEOUThighDimHypercubes/%s' % fw_spec['problem_name'].split('.')[0]
+        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/slurm_postUAI/max_timeout1000/%s' % fw_spec['problem_name'].split('.')[0]
         if not os.path.exists(RESULTS_DIRECTORY):
             os.makedirs(RESULTS_DIRECTORY)      
 
@@ -265,49 +265,51 @@ class RunSpecificExperimentBatch(FireTaskBase):
                 quit_m_early = False
                 last_m_val = -1
                 for m in [m*(dup_copies+1) for m in m_ranges[fw_spec['problem_name']]]:
-                    if fw_spec['ADD_CONSTRAINT_ALL_ONES']:
-                        m_effective = m - 1
-                    else:
-                        m_effective = m
-                    if k==None or k*m_effective > self.n: #use k = n/m_effective
-                        k_low = int(math.floor(float(self.n) / m_effective))
-                        k_high = int(math.ceil(float(self.n) / m_effective))
-                    else:
-                        k_low = k
-                        k_high = k
-            
+                    #compute f such that any construction has the density specified by f, not probability of flipping specified by f                    
                     if fw_spec['adjust_f'] == True:
-                        #compute f such that the original matrix construction using iid entries will
-                        #have the same expected number of 1's as when floor(n/m) entries are added with
-                        #probability (1-f)
                         sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=0)
-                        max_const_k = int(math.floor(float(sat.n) / m))
-                        f_orig = (f*(sat.n - 2*max_const_k) + max_const_k)/(sat.n)
-                        if f_orig > .5:
-                            continue
-                    elif fw_spec['adjust_f'] == expectedNum1s:
-                        #f is the the density of ones, find values of f and k that achieve this density
-                        if k==None or k*m_effective > self.n: #use k = n/m_effective
-                            k_low = int(math.floor(float(self.n) / m_effective))
-                            k_high = int(math.ceil(float(self.n) / m_effective))
-                        elif k == 'maxConstant':
-                            k_low = int(math.floor(float(self.n) / m_effective))
-                            k_high = int(math.floor(float(self.n) / m_effective))            
+                        N = sat.n 
+
+                        if fw_spec['ADD_CONSTRAINT_ALL_ONES']:
+                            m_effective = m - 1
                         else:
-                            k_low = k
-                            k_high = k
+                            m_effective = m
+
+                        if fw_spec['k']==None:
+                            cur_k = N/m
+                        elif fw_spec['k'] == 'maxConstant':
+                            cur_k = np.floor(N/m)                            
+                        else:
+                            cur_k = fw_spec['k']
+                        k_density = cur_k/N
+                        print 'N=', N, 'm=', m, "fw_spec['k']=", fw_spec['k'], 'k_density=', k_density
+
+                        #compute the density of ones from k:                        
+                        if k_density > f: #we need to decrease k
+                            cur_k = np.floor(f*N)
+                            print "changed cur_k=", cur_k
+
+                        if fw_spec['f_block'] == '1minusF':
+                            f_prime = (f*N - cur_k)/(N - 2*cur_k)
+                            print 'f_prime=', f_prime
+                            assert(abs((1 - f_prime)*cur_k + f_prime*(N - cur_k) - N*f) < .0001), (f_prime, cur_k, N)
+                        else:
+                            assert(fw_spec['f_block'] == '1')
+                            f_prime = (f*N - cur_k)/(N - cur_k)
+                            print 'f_prime=', f_prime
+                            assert(abs(cur_k + f_prime*(N - cur_k) - N*f) < .0001), (f_prime, cur_k, N)
                     else:
-                        f_orig = f
+                        f_prime = f
                     failures = 0
                     for repeat in range(fw_spec['repeats']):
                         logger = open(filename, 'a')
                         sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                         if fw_spec['f_block'] == '1':
-                            sat.add_regular_constraints_constantF_permuted(m=m, f=f_orig, f_block=1.0, permute=fw_spec['permute'], k=fw_spec['k'],\
+                            sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0, permute=fw_spec['permute'], k=cur_k,\
                                                                        ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
                         else:
                             assert(fw_spec['f_block'] == '1minusF')
-                            sat.add_regular_constraints_constantF_permuted(m=m, f=f_orig, f_block=1.0-f_orig, permute=fw_spec['permute'], k=fw_spec['k'],\
+                            sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0-f_prime, permute=fw_spec['permute'], k=cur_k,\
                                                                        ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
 
                         start_time = time.time()
@@ -316,9 +318,9 @@ class RunSpecificExperimentBatch(FireTaskBase):
                         if outcome == None:
                             failures += 1
                     
-                        logger.write("f %f time %f m %d solution %s\n" % (f_orig, elapsed_time, m, outcome))
+                        logger.write("f_prime %f f %f cur_k %f n %d time %f m %d solution %s\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome))
                         logger.close()
-                        print("f = %.3f, time=%.2f, m=%d, solution=%s" % (f_orig, elapsed_time, m, outcome))
+                        print("f_prime %f f %f cur_k %f n %d time %f m %d solution %s\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome))
     
                     if failures == fw_spec['repeats']:
                         quit_m_early = True
@@ -326,31 +328,55 @@ class RunSpecificExperimentBatch(FireTaskBase):
                         break
                 if quit_m_early:
                     #start with largest m and iterate down
-                    for m in reversed([m*(dup_copies+1) for m in m_ranges[fw_spec['problem_name']]]):
+                    for m in reversed([m*(dup_copies+1) for m in m_ranges[fw_spec['problem_name']]]):                        
                         if m <= last_m_val:
                             break
+                        #compute f such that any construction has the density specified by f, not probability of flipping specified by f                    
                         if fw_spec['adjust_f'] == True:
-                            #compute f such that the original matrix construction using iid entries will
-                            #have the same expected number of 1's as when floor(n/m) entries are added with
-                            #probability (1-f)
                             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=0)
-                            max_const_k = int(math.floor(float(sat.n) / m))
-                            f_orig = (f*(sat.n - 2*max_const_k) + max_const_k)/(sat.n)
-                            if f_orig > .5:
-                                continue
-                        else:
-                            f_orig = f
+                            N = sat.n 
 
+                            if fw_spec['ADD_CONSTRAINT_ALL_ONES']:
+                                m_effective = m - 1
+                            else:
+                                m_effective = m
+
+                            if fw_spec['k']==None:
+                                cur_k = N/m
+                            elif fw_spec['k'] == 'maxConstant':
+                                cur_k = np.floor(N/m)                            
+                            else:
+                                cur_k = fw_spec['k']
+                            k_density = cur_k/N
+                            print 'N=', N, 'm=', m, "fw_spec['k']=", fw_spec['k'], 'k_density=', k_density
+
+                            #compute the density of ones from k:                        
+                            if k_density > f: #we need to decrease k
+                                cur_k = np.floor(f*N)
+                                print "changed cur_k=", cur_k
+
+                            if fw_spec['f_block'] == '1minusF':
+                                f_prime = (f*N - cur_k)/(N - 2*cur_k)
+                                print 'f_prime=', f_prime
+                                assert(abs((1 - f_prime)*cur_k + f_prime*(N - cur_k) - N*f) < .0001), (f_prime, cur_k, N)
+                            else:
+                                assert(fw_spec['f_block'] == '1')
+                                f_prime = (f*N - cur_k)/(N - cur_k)
+                                print 'f_prime=', f_prime
+                                assert(abs(cur_k + f_prime*(N - cur_k) - N*f) < .0001), (f_prime, cur_k, N)
+
+                        else:
+                            f_prime = f
                         failures = 0
                         for repeat in range(fw_spec['repeats']):
                             logger = open(filename, 'a')
                             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                             if fw_spec['f_block'] == '1':
-                                sat.add_regular_constraints_constantF_permuted(m=m, f=f_orig, f_block=1.0, permute=fw_spec['permute'], k=fw_spec['k'],\
+                                sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0, permute=fw_spec['permute'], k=cur_k,\
                                                                            ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
                             else:
                                 assert(fw_spec['f_block'] == '1minusF')
-                                sat.add_regular_constraints_constantF_permuted(m=m, f=f_orig, f_block=1.0-f_orig, permute=fw_spec['permute'], k=fw_spec['k'],\
+                                sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0-f_prime, permute=fw_spec['permute'], k=cur_k,\
                                                                            ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
 
                             start_time = time.time()
@@ -359,9 +385,9 @@ class RunSpecificExperimentBatch(FireTaskBase):
                             if outcome == None:
                                 failures += 1
                         
-                            logger.write("f %f time %f m %d solution %s\n" % (f_orig, elapsed_time, m, outcome))
+                            logger.write("f_prime %f f %f cur_k %f n %d time %f m %d solution %s\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome))
                             logger.close()
-                            print("f = %.3f, time=%.2f, m=%d, solution=%s" % (f_orig, elapsed_time, m, outcome))
+                            print("f_prime %f f %f cur_k %f n %d time %f m %d solution %s\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome))
         
                         if failures == fw_spec['repeats']:
                             break
@@ -392,7 +418,10 @@ def run_experiment():
 
     #PROBLEM_NAMES = ['hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
     #PROBLEM_NAMES = ['c432.isc']
-    PROBLEM_NAMES = ['hypercube3.cnf', 'hypercube4.cnf', 'hypercube5.cnf', 'hypercube6.cnf', 'hypercube7.cnf']
+    #PROBLEM_NAMES = ['hypercube3.cnf']#, 'hypercube4.cnf', 'hypercube5.cnf', 'hypercube6.cnf', 'hypercube7.cnf']
+    #PROBLEM_NAMES = ['hypercube3.cnf']#, 'hypercube4.cnf', 'hypercube5.cnf', 'hypercube6.cnf', 'hypercube7.cnf', 'hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
+    PROBLEM_NAMES = ['hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
+
     REPEATS_OF_EXPERIMENT = 10
 
     for problem_name in PROBLEM_NAMES:
@@ -404,11 +433,11 @@ def run_experiment():
 #                                                  ('1', True, 1), ('1minusF', True, 1), ('1', False, 1), ('1minusF', False, 1),
 #                                                  ('1', False, 0)]
                 for (f_block, permute, k, ADD_CONSTRAINT_ALL_ONES, adjust_f) in \
-                    [('1minusF', True, 'maxConstant', False, False),\
+                    [('1minusF', True, 'maxConstant', False, True),\
                      ('1', False, 0, False, True)]:  
-#                    [('1minusF', True, 'maxConstant', False, False),\
+#                    [('1minusF', True, 'maxConstant', False, True),\
 #                     ('1', False, 0, False, True),\
-#                     ('1', True, None, False, False), ('1', False, None, False, False)]:  
+#                     ('1', True, None, False, True), ('1', False, None, False, True)]:  
 
                     #[('1minusF', True, 'maxConstant', False), ('1minusF', True, 'maxConstant', True),\
                     #('1', True, None, True), ('1', False, None, True)]:                    
@@ -441,7 +470,7 @@ def run_experiment():
     else:
         launchpad.add_wf(workflow)
         qadapter = CommonAdapter.from_file("%s/my_qadapter.yaml" % HOME_DIRECTORY)
-        rapidfire(launchpad, FWorker(), qadapter, launch_dir='.', nlaunches='infinite', njobs_queue=200,
+        rapidfire(launchpad, FWorker(), qadapter, launch_dir='.', nlaunches='infinite', njobs_queue=350,
                       njobs_block=500, sleep_time=None, reserve=False, strm_lvl='INFO', timeout=None,
                       fill_mode=False)
 
