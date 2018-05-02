@@ -6,12 +6,17 @@ import time
 import os
 import math
 
-import matplotlib
-matplotlib.use('Agg') #prevent error running remotely
-import matplotlib.pyplot as plt
-import numpy as np
+MACHINE = 'atlas' #'atlas' or 'local'
 
-INSTALL_DIRECTORY = '/atlas/u/jkuck'
+if MACHINE == 'local':
+    CRYPTOMINISAT5_DIRECTORY = '/Users/jkuck/software/cryptominisat-5.0.1/build'
+    SAT_SOLVER = "CRYPTOMINISAT5"
+else:
+    import matplotlib
+    matplotlib.use('Agg') #prevent error running remotely
+    import matplotlib.pyplot as plt
+    import numpy as np
+    INSTALL_DIRECTORY = '/atlas/u/jkuck'
 
 # Runs a system command without timeout
 def run_command(command):
@@ -508,6 +513,7 @@ class SAT:
 
 
     def solve(self, max_time=-1):
+        print 'hi'
         """ Attempt to solve the problem, returns True/False if the problem is satisfiable/unsatisfiable,
     returns None if timeout """
         if self.fail_apriori:
@@ -530,7 +536,13 @@ class SAT:
             ofstream.write("0\n")
         ofstream.close()
         start_time = time.time()
-        solver = Command(['%s/XORModelCount/SATModelCount/cryptominisat'%INSTALL_DIRECTORY, '--verbosity=0', '--gaussuntil=400', '--threads=1', filename])
+        if MACHINE == 'local':
+            if SAT_SOLVER == 'ORIGINAL':
+                solver = Command(['./cryptominisat', '--verbosity=0', '--gaussuntil=400', '--threads=1', filename])
+            elif SAT_SOLVER == 'CRYPTOMINISAT5':
+                solver = Command(['%s/cryptominisat5' % CRYPTOMINISAT5_DIRECTORY, '--verb', '0', filename])
+        else:
+            solver = Command(['%s/XORModelCount/SATModelCount/cryptominisat'%INSTALL_DIRECTORY, '--verbosity=0', '--gaussuntil=400', '--threads=1', filename])
         result = solver.run(timeout=max_time)
         end_time = time.time()
         run_command(['rm', filename])
@@ -686,14 +698,12 @@ if __name__ == '__main__':
 
 
 
-
-
     problem = SAT('examples/lang12.cnf', verbose=True)
 #    problem.n = 100
     problem.add_parity_constraints(m=20, f=.05)
     problem.solve()
     exit(0)
-    
+
     problem = SAT('examples/lang12.cnf', verbose=True)
     problem.n = 100
     problem.add_regular_constraints(12, 0.02)
