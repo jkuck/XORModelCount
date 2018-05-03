@@ -1,3 +1,4 @@
+from __future__ import division
 __author__ = 'shengjia'
 
 import subprocess, threading
@@ -5,8 +6,9 @@ import random
 import time
 import os
 import math
+import numpy as np
 
-MACHINE = 'atlas' #'atlas' or 'local'
+MACHINE = 'local'#'atlas' #'atlas' or 'local'
 
 if MACHINE == 'local':
     CRYPTOMINISAT5_DIRECTORY = '/Users/jkuck/software/cryptominisat-5.0.1/build'
@@ -15,7 +17,6 @@ else:
     import matplotlib
     matplotlib.use('Agg') #prevent error running remotely
     import matplotlib.pyplot as plt
-    import numpy as np
     INSTALL_DIRECTORY = '/atlas/u/jkuck'
 
 # Runs a system command without timeout
@@ -226,6 +227,66 @@ class SAT:
                         print("Maximum xor length is %d. Added %d new variables" % (self.max_xor, self.new_variables))
 
             print "number of parity constraints added:", len(self.hash_functions)
+
+    def add_parity_constraints_restrict_vars(self, m, f, var_restriction):
+        """
+        Test whether variable overlap between parity constraints makes solving time faster or slower
+        Add m parity constraints, each parity constraint contains f*n variables in expectation, restrict
+        to including only a subset of variables in the parity constraints
+        Inputs:
+        - m: (int) the number of parity constraints
+        - f: (float) each parity constraint contains f*n variables in expectation (n is total number of variables)
+        - var_restriction: (int) only the first var_restriction variables can be included in any parity constraints
+        """
+        if var_restriction/self.n < f:
+            print 'var_restriction is too small, cannot increase f sufficiently'
+            return
+        else: #compute new f so that we maintain the density f or variables in parity constraints, but restricted to a subset of variables
+            new_f = self.n*f/var_restriction
+            f = new_f
+
+        self.hash_functions = []
+        self.new_variables = 0
+        self.fail_apriori = False
+
+        cur_index = self.n + 1
+
+        print '-'*80        
+        print "n = ", self.n
+        print "clauseCount = ", self.clauseCount
+        total_vars_in_parity_constraints = 0
+        for i in range(0, m):
+            new_function = []
+
+            for atom in range(1, var_restriction + 1):
+                if random.random() < f:
+                    new_function.append(atom)
+                    total_vars_in_parity_constraints += 1
+            if len(new_function) == 0:
+                if random.randint(0, 1) == 0:
+                    continue
+                else:
+                    self.fail_apriori = True
+                    return
+            if random.randint(0, 1) == 0:
+                new_function[0] = -new_function[0]
+            if self.max_xor > 0:
+                while len(new_function) > self.max_xor:
+                    temp = new_function[0 : self.max_xor - 1]
+                    new_function = [cur_index] + new_function[self.max_xor - 1:]
+                    temp.append(cur_index)
+                    cur_index += 1
+                    self.new_variables += 1
+                    self.hash_functions.append(temp)
+            self.hash_functions.append(new_function)
+
+        print 'empirical density = ', total_vars_in_parity_constraints/(self.n*m)
+        if self.verbose:
+            print("Generated %d parity constraints" % m)
+            if self.max_xor > 0:
+                print("Maximum xor length is %d. Added %d new variables" % (self.max_xor, self.new_variables))
+
+
     def add_regular_constraints(self, m, f):
         """ Add m parity constraints, according to the new combined ensemble """
         if m * f <= 1:
@@ -381,6 +442,8 @@ class SAT:
 
         curIndex = self.n + 1
 
+        total_vars_in_parity_constraints = 0
+
         for i in range(0, m):
             new_function = []
 
@@ -404,9 +467,11 @@ class SAT:
                     #if so, add variable with probabilty f_block
                     if random.random() < f_block:
                         new_function.append(atom)
+                        total_vars_in_parity_constraints += 1
                 #if this element isn't part of a permuted block, add variable with probability f_updated
                 elif random.random() < f_updated:
                     new_function.append(atom)
+                    total_vars_in_parity_constraints += 1
 
             if len(new_function) == 0:
                 if random.randint(0, 1) == 0:
@@ -425,6 +490,9 @@ class SAT:
                     self.new_variables += 1
                     self.hash_functions.append(temp)
             self.hash_functions.append(new_function)
+
+        print 'empirical density = ', total_vars_in_parity_constraints/(self.n*m)
+
         if self.verbose:
             print("Generated %d parity constraints" % m)
             if self.max_xor > 0:
@@ -513,7 +581,7 @@ class SAT:
 
 
     def solve(self, max_time=-1):
-        print 'hi'
+        print 'solve called'
         """ Attempt to solve the problem, returns True/False if the problem is satisfiable/unsatisfiable,
     returns None if timeout """
         if self.fail_apriori:
@@ -529,12 +597,17 @@ class SAT:
 
         for item in self.clauses:
             ofstream.write(item + "\n")
+        parity_constraint_count = 0
+        total_vars_in_parity_constraints = 0
         for hashFunction in self.hash_functions:
+            parity_constraint_count += 1
             ofstream.write("x")
             for item in hashFunction:
+                total_vars_in_parity_constraints += 1
                 ofstream.write(str(item) + " ")
             ofstream.write("0\n")
         ofstream.close()
+        empirical_density = total_vars_in_parity_constraints/(self.n*parity_constraint_count)
         start_time = time.time()
         if MACHINE == 'local':
             if SAT_SOLVER == 'ORIGINAL':
@@ -554,18 +627,20 @@ class SAT:
                 print("SAT solved, time usage " + str(end_time - start_time) + "s, output: ")
                 print("-----------------------------------------")
                 print(result)
+                print(type(result))
+                print(len(result))
                 print("-----------------------------------------")
 
         if result is None:
-            return None
+            return (None, empirical_density)
 
         result = result.split()
         if len(result) >= 2:
             outcome = result[1]
             if outcome == 'SATISFIABLE':
-                return (True, end_time - start_time)
+                return ((True, end_time - start_time), empirical_density)
             elif outcome == 'UNSATISFIABLE':
-                return (False, end_time - start_time)
+                return ((False, end_time - start_time), empirical_density)
 
         print("Error: unrecognized return value")
         print("Full output: ")
@@ -577,21 +652,31 @@ if __name__ == '__main__':
     #m = 20#33
     #f = 0.03#0.05
 
-    m = 9
+    m = 36
     #f = 0.052727
     #f = 0.05
     f = 0.02
     f_block = 1
-    REPEATS = 10
+    REPEATS = 100
     total_time = 0.0
     total_satisfied_sol_found = 0
 #    PROBLEM_NAMES = ['c432.isc', 'c499.isc', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'ra.cnf', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'log-1.cnf', 'log-2.cnf', 'lang12.cnf']
 #    PROBLEM_NAMES = ['sat-grid-pbl-0010.cnf']
-    PROBLEM_NAMES = ['hypercube2.cnf']
+    PROBLEM_NAMES = ['tire-4.cnf']
     for problem_name in PROBLEM_NAMES:
         for i in range(REPEATS):
-            sat = SAT("../../low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
-            #sat.add_regular_constraints_constantF_permuted(m=5, f=.01, f_block=1, permute=True, k=None, ADD_CONSTRAINT_ALL_ONES=True)
+            sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
+            #sat.add_parity_constraints_restrict_vars(m=m, f=f, var_restriction=int(sat.n/1))
+
+            k = np.floor(sat.n/m)
+            k_density = k/sat.n
+            if k_density > f: #we need to decrease k
+                k = np.floor(f*sat.n)
+
+            f_prime = (f*sat.n - k)/(sat.n - 2*k)
+            print 'f_prime:', f_prime
+            sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1-f_prime, permute=True, k=k, ADD_CONSTRAINT_ALL_ONES=False)
+            
             #sat.add_permutation_constraints(m=sat.n, f=0.05)
             #sat.add_variable_length_constraints(m=sat.n, f=0.05)
 
@@ -602,7 +687,7 @@ if __name__ == '__main__':
 
             #sat.add_regular_constraints_constantF_permuted(m=m, f=f, f_block=f_block)
             #sat.add_regular_constraints_constantF(m, f)
-            outcome = sat.solve(3600)
+            (outcome, empirical_density) = sat.solve(3600)
             elapsed_time = outcome[1]
             total_time += elapsed_time
             if outcome is True:
@@ -659,18 +744,18 @@ if __name__ == '__main__':
             problem = SAT('examples/%s.cnf'%problem_instance, verbose=True)
             problem.n = 100
             problem.add_parity_constraints(m=M, f=f)
-            (satisfied_orig, run_time_orig) = problem.solve()
+            ((satisfied_orig, run_time_orig), empirical_density) = problem.solve()
 
             problem = SAT('examples/%s.cnf'%problem_instance, verbose=True)
             problem.n = 100
             problem.add_regular_constraints(m=M, f=f)
-            (satisfied_regular, run_time_regular) = problem.solve()
+            ((satisfied_regular, run_time_regular), empirical_density) = problem.solve()
 
             problem = SAT('examples/%s.cnf'%problem_instance, verbose=True)
             problem.n = 100
             N = problem.n
             problem.add_parity_constraints(m=M, f=f+K/N)
-            (satisfied_orig_fprime, run_time_orig_fprime) = problem.solve()
+            ((satisfied_orig_fprime, run_time_orig_fprime), empirical_density) = problem.solve()
 
             solve_times_orig.append(run_time_orig)
             solve_times_block_diag.append(run_time_regular) 
@@ -715,7 +800,7 @@ if __name__ == '__main__':
     m = 27
     for i in range(0, 1000):
         problem.add_regular_constraints(m, 0.02)
-        result = problem.solve()
+        (result, empirical_density) = problem.solve()
         if result is True:
             print(str(m) + " SAT: " + str(true_count) + ":" + str(false_count))
             true_count += 1

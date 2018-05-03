@@ -81,14 +81,15 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
                             approximate_runtime = float(line[9])
                             approximate_normalized_runtime = approximate_runtime/mean_unperturbed_run_time
                             all_runtimes_dict[(f,m)].append(approximate_normalized_runtime)
-                            print 'problem timed out, approximate_normalized_runtime =', approximate_normalized_runtime                          
+                            #print 'problem timed out, approximate_normalized_runtime =', approximate_normalized_runtime                          
                         num_trials_dict[(f,m)] += 1
                         num_TIMEOUT_dict[(f,m)] += 1
                         continue
 
                     elif len(line) == 2:
                         if line[0] == 'MAX_TIMEOUT_MULTIPLE=':
-                            MAX_TIMEOUT_MULTIPLE = float(line[1])                            
+                            MAX_TIMEOUT_MULTIPLE = float(line[1])
+                            continue                       
                         else:
                             assert(line[0] == 'mean_unperturbed_run_time=')
                             mean_unperturbed_run_time = float(line[1])
@@ -97,6 +98,7 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
                     else:
                         break
         
+                #print line
                 f = float(line[3])
                 run_time = float(line[14][0:-1])
                 m = int(line[11])
