@@ -25,7 +25,7 @@ import numpy as np
 # Add the following line to the file ~/.bashrc.user on Atlas:
 # export PYTHONPATH="/atlas/u/jkuck/XORModelCount/SATModelCount:$PYTHONPATH"
 
-
+# $ source ~/.bashrc.user
 # $ export PATH=/opt/rh/python27/root/usr/bin:$PATH
 # $ export LD_LIBRARY_PATH=/opt/rh/python27/root/usr/lib64/:$LD_LIBRARY_PATH
 # $ PACKAGE_DIR=/atlas/u/jkuck/software
@@ -39,7 +39,7 @@ import numpy as np
 MAX_TIME = 360 #max time to run a single SAT problem
 
 #used for RunSpecificExperimentBatch
-MAX_TIMEOUT_MULTIPLE = 1000 #run at max MAX_TIMEOUT_MULTIPLE*unperturbed runtime
+MAX_TIMEOUT_MULTIPLE = 100 #run at max MAX_TIMEOUT_MULTIPLE*unperturbed runtime
 
 m_ranges = {#'c432.isc': range(25, 42), #log_2(Z) = 36.1
             'c432.isc': range(25, 46), #log_2(Z) = 36.1
@@ -235,7 +235,7 @@ class RunExperimentBatch(FireTaskBase):
 @explicit_serialize
 class RunSpecificExperimentBatch(FireTaskBase):   
     def run_task(self, fw_spec):
-        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/slurm_postUAI/max_timeout1000/%s' % fw_spec['problem_name'].split('.')[0]
+        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/slurm_postUAI/test_permute/%s' % fw_spec['problem_name'].split('.')[0]
         if not os.path.exists(RESULTS_DIRECTORY):
             os.makedirs(RESULTS_DIRECTORY)      
 
@@ -435,6 +435,7 @@ def run_experiment():
 #                                                  ('1', False, 0)]
                 for (f_block, permute, k, ADD_CONSTRAINT_ALL_ONES, adjust_f) in \
                     [('1minusF', True, 'maxConstant', False, True),\
+                     ('1minusF', False, 'maxConstant', False, True),\
                      ('1', False, 0, False, True)]:  
 #                    [('1minusF', True, 'maxConstant', False, True),\
 #                     ('1', False, 0, False, True),\
