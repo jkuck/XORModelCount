@@ -128,7 +128,7 @@ class RunExperimentBatch(FireTaskBase):
                             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                             sat.add_regular_constraints_constantF_permuted(m=m, f=f, f_block=1.0, permute=False, k=3)
                             start_time = time.time()
-                            outcome = sat.solve(MAX_TIME)
+                            (outcome, empirical_density) = sat.solve(MAX_TIME)
                             elapsed_time = time.time() - start_time
                         
                             logger.write("f %f time %f m %d solution %s\n" % (f, elapsed_time, m, outcome))
@@ -146,7 +146,7 @@ class RunExperimentBatch(FireTaskBase):
                             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                             sat.add_regular_constraints_constantF_permuted(m=m, f=f, f_block=1.0-f, permute=False, k=3)
                             start_time = time.time()
-                            outcome = sat.solve(MAX_TIME)
+                            (outcome, empirical_density) = sat.solve(MAX_TIME)
                             elapsed_time = time.time() - start_time
                         
                             logger.write("f %f time %f m %d solution %s\n" % (f, elapsed_time, m, outcome))
@@ -166,7 +166,7 @@ class RunExperimentBatch(FireTaskBase):
                             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                             sat.add_regular_constraints_constantF_permuted(m=m, f=f, f_block=1.0, permute=True, k=3)
                             start_time = time.time()
-                            outcome = sat.solve(MAX_TIME)
+                            (outcome, empirical_density) = sat.solve(MAX_TIME)
                             elapsed_time = time.time() - start_time
                         
                             logger.write("f %f time %f m %d solution %s\n" % (f, elapsed_time, m, outcome))
@@ -183,7 +183,7 @@ class RunExperimentBatch(FireTaskBase):
                             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                             sat.add_regular_constraints_constantF_permuted(m=m, f=f, f_block=1.0-f, permute=True, k=3)
                             start_time = time.time()
-                            outcome = sat.solve(MAX_TIME)
+                            (outcome, empirical_density) = sat.solve(MAX_TIME)
                             elapsed_time = time.time() - start_time
                         
                             logger.write("f %f time %f m %d solution %s\n" % (f, elapsed_time, m, outcome))
@@ -204,7 +204,7 @@ class RunExperimentBatch(FireTaskBase):
                             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                             sat.add_permutation_constraints(m, f)
                             start_time = time.time()
-                            outcome = sat.solve(MAX_TIME)
+                            (outcome, empirical_density) = sat.solve(MAX_TIME)
                             elapsed_time = time.time() - start_time
                         
                             logger.write("f %f time %f m %d solution %s\n" % (f, elapsed_time, m, outcome))
@@ -224,7 +224,7 @@ class RunExperimentBatch(FireTaskBase):
                 #        sat.add_regular_constraints(m, f)
                 #        sat.add_permutation_constraints(m, f)
                         start_time = time.time()
-                        outcome = sat.solve(MAX_TIME)
+                        (outcome, empirical_density) = sat.solve(MAX_TIME)
                         elapsed_time = time.time() - start_time        
         
                         logger.write("f %f time %f m %d solution %s\n" % (f, elapsed_time, m, outcome))
@@ -248,9 +248,10 @@ class RunSpecificExperimentBatch(FireTaskBase):
         total_time = 0.0
         for i in range(REPEATS):
             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=0)
-            outcome = sat.solve(3600)
+            (outcome, empirical_density) = sat.solve(3600)
             elapsed_time = outcome[1]
             total_time += elapsed_time
+            assert(empirical_density == 0), empirical_density
         mean_runtime = total_time/REPEATS
         logger = open(filename, 'w')
         logger.write("mean_unperturbed_run_time= %f\n" % mean_runtime)
@@ -314,14 +315,14 @@ class RunSpecificExperimentBatch(FireTaskBase):
                                                                        ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
 
                         start_time = time.time()
-                        outcome = sat.solve(mean_runtime*MAX_TIMEOUT_MULTIPLE)
+                        (outcome, empirical_density) = sat.solve(mean_runtime*MAX_TIMEOUT_MULTIPLE)
                         elapsed_time = time.time() - start_time
                         if outcome == None:
                             failures += 1
                     
-                        logger.write("f_prime %f f %f cur_k %f n %d time %f m %d solution %s\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome))
+                        logger.write("f_prime %f f %f cur_k %f n %d time %f m %d solution %s empirical_density %f\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome, empirical_density))
                         logger.close()
-                        print("f_prime %f f %f cur_k %f n %d time %f m %d solution %s\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome))
+                        print("f_prime %f f %f cur_k %f n %d time %f m %d solution %s empirical_density %f\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome, empirical_density))
     
                     if failures == fw_spec['repeats']:
                         quit_m_early = True
@@ -381,14 +382,14 @@ class RunSpecificExperimentBatch(FireTaskBase):
                                                                            ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
 
                             start_time = time.time()
-                            outcome = sat.solve(mean_runtime*MAX_TIMEOUT_MULTIPLE)
+                            (outcome, empirical_density) = sat.solve(mean_runtime*MAX_TIMEOUT_MULTIPLE)
                             elapsed_time = time.time() - start_time
                             if outcome == None:
                                 failures += 1
                         
-                            logger.write("f_prime %f f %f cur_k %f n %d time %f m %d solution %s\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome))
+                            logger.write("f_prime %f f %f cur_k %f n %d time %f m %d solution %s empirical_density %f\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome, empirical_density))
                             logger.close()
-                            print("f_prime %f f %f cur_k %f n %d time %f m %d solution %s\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome))
+                            print("f_prime %f f %f cur_k %f n %d time %f m %d solution %s empirical_density %f\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome, empirical_density))
         
                         if failures == fw_spec['repeats']:
                             break

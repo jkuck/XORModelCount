@@ -53,9 +53,12 @@ regular_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_p
 permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=None_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
 REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
-PROBLEM_NAME = 'c432'
-original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
-permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+PROBLEM_NAME = 'tire-4'
+#original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+original_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+
 
 USE_MULTIPLE_FILES = True #aggregate results from multiple files if true
 FILE_COUNT = 10 #number of experiments run on possible different machines
@@ -446,8 +449,8 @@ def print_summary_table(problem_names, runtime_cutoffs, print_ratio=False):
         print "Model Name & \#Variables& \#Clauses & ln(Z) &  Ours &  Baseline &  Ours &  Baseline &  Ours &  Baseline &  Ours &  Baseline \\\\\midrule"
 
     for problem_name in problem_names:
-        baseline_filebase = 'heatmap_result_fireworksTIMEOUT_3_9/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
-        our_filebase = 'heatmap_result_fireworksTIMEOUT_3_9/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
+        baseline_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
+        our_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
 
         baseline_bounds_by_runtime = get_best_bounds_by_runtime(baseline_filebase, runtime_cutoffs)
         our_bounds_by_runtime = get_best_bounds_by_runtime(our_filebase, runtime_cutoffs)
@@ -485,10 +488,10 @@ def print_summary_table(problem_names, runtime_cutoffs, print_ratio=False):
 #            baseline_bounds_by_runtime[1000], our_bounds_by_runtime[1000])
 if __name__=="__main__":
 
-    runtime_cutoffs = [1, 10, 100]    
+    runtime_cutoffs = [1, 10, 100, 1000]    
     problem_names =  ['tire-1', 'tire-2', 'tire-3', 'tire-4', 'c432', 'c499', 'c880', 'c1355', 'c1908', 'c2670', 'sat-grid-pbl-0010', 'sat-grid-pbl-0015', 'sat-grid-pbl-0020', 'log-1', 'log-2', 'ra', 'lang12', 'hypercube', 'hypercube1', 'hypercube2']
-#    print_summary_table(problem_names=problem_names, runtime_cutoffs=runtime_cutoffs, print_ratio=False)
-#    exit(0)
+    #print_summary_table(problem_names=problem_names, runtime_cutoffs=runtime_cutoffs, print_ratio=False)
+    #exit(0)
 
 
     ##### original randomness #####
@@ -675,6 +678,19 @@ if __name__=="__main__":
             cur_satFracRatio = num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]/num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
             runtimeRatios_origParetoFrontier.append(cur_runtimeRatio)
             satFracRatios_origParetoFrontier.append(cur_satFracRatio)
+            assert(pf_runtime_orig_sequential[idx] == np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)]))
+            print '-'*80
+            print 'pareto point for original iid construction:'
+            print cur_m_val, cur_f_val
+            print 'old frac sat:', num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
+            print 'new frac sat:', num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
+            print 'old runtime:',np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])
+            print 'old runtimes:',all_runtimes_dict_orig[(cur_f_val, cur_m_val)]
+            print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
+            print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
+            print 'new runtimes:', all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)]
+            print 'cur_runtimeRatio:', cur_runtimeRatio
+            print 'cur_satFracRatio:', cur_satFracRatio
 
         plt.plot(runtimeRatios_origParetoFrontier, '*--', c='g', label='original runtime/new runtime')
         plt.plot(satFracRatios_origParetoFrontier, '*--', c='b', label='new frac SAT/original frac SAT')
@@ -699,7 +715,10 @@ if __name__=="__main__":
             cur_runtimeRatio = np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])/pf_runtime_regular_sequential[idx]
             cur_satFracRatio = num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]/num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
             print '-'*80
+            print 'pareto point for regular construction:'            
             print cur_m_val, cur_f_val
+            print 'old frac sat:', num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
+            print 'new frac sat:', num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
             print 'old runtime:',np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])
             print 'old runtimes:',all_runtimes_dict_orig[(cur_f_val, cur_m_val)]
             print 'new runtime:',pf_runtime_regular_sequential[idx]
