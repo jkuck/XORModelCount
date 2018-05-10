@@ -678,6 +678,19 @@ if __name__=="__main__":
             cur_satFracRatio = num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]/num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
             runtimeRatios_origParetoFrontier.append(cur_runtimeRatio)
             satFracRatios_origParetoFrontier.append(cur_satFracRatio)
+            assert(pf_runtime_orig_sequential[idx] == np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)]))
+            print '-'*80
+            print 'pareto point for original iid construction:'
+            print cur_m_val, cur_f_val
+            print 'old frac sat:', num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
+            print 'new frac sat:', num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
+            print 'old runtime:',np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])
+            print 'old runtimes:',all_runtimes_dict_orig[(cur_f_val, cur_m_val)]
+            print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
+            print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
+            print 'new runtimes:', all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)]
+            print 'cur_runtimeRatio:', cur_runtimeRatio
+            print 'cur_satFracRatio:', cur_satFracRatio
 
         plt.plot(runtimeRatios_origParetoFrontier, '*--', c='g', label='original runtime/new runtime')
         plt.plot(satFracRatios_origParetoFrontier, '*--', c='b', label='new frac SAT/original frac SAT')
@@ -702,6 +715,7 @@ if __name__=="__main__":
             cur_runtimeRatio = np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])/pf_runtime_regular_sequential[idx]
             cur_satFracRatio = num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]/num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
             print '-'*80
+            print 'pareto point for regular construction:'            
             print cur_m_val, cur_f_val
             print 'old frac sat:', num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
             print 'new frac sat:', num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
