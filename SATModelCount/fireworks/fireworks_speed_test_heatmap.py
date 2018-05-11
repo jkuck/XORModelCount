@@ -35,6 +35,8 @@ import numpy as np
 # $ cd /atlas/u/jkuck/XORModelCount/SATModelCount/fireworks
 # $ python fireworks_speed_test_heatmap.py
 
+NJOBS_QUEUE = 130
+
 #used for RunExperimentBatch
 MAX_TIME = 360 #max time to run a single SAT problem
 
@@ -235,13 +237,13 @@ class RunExperimentBatch(FireTaskBase):
 @explicit_serialize
 class RunSpecificExperimentBatch(FireTaskBase):   
     def run_task(self, fw_spec):
-        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/slurm_postUAI/test_permute/%s' % fw_spec['problem_name'].split('.')[0]
+        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/slurm_postUAI1/test_permute1/%s' % fw_spec['problem_name'].split('.')[0]
         if not os.path.exists(RESULTS_DIRECTORY):
             os.makedirs(RESULTS_DIRECTORY)      
 
-        filename = '%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_REPEATS=%d_expIdx=%d.txt'%\
+        filename = '%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_changeVars=%s_REPEATS=%d_expIdx=%d.txt'%\
             (RESULTS_DIRECTORY, fw_spec['f_block'], fw_spec['permute'], fw_spec['k'], fw_spec['ADD_CONSTRAINT_ALL_ONES'],\
-            fw_spec['adjust_f'], fw_spec['repeats'], fw_spec['experiment_idx'])
+            fw_spec['adjust_f'], fw_spec['change_var_names'], fw_spec['repeats'], fw_spec['experiment_idx'])
 
 
         REPEATS = 10
@@ -308,11 +310,11 @@ class RunSpecificExperimentBatch(FireTaskBase):
                         sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                         if fw_spec['f_block'] == '1':
                             sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0, permute=fw_spec['permute'], k=cur_k,\
-                                                                       ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
+                                                                       ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'], change_var_names=fw_spec['change_var_names'])
                         else:
                             assert(fw_spec['f_block'] == '1minusF')
                             sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0-f_prime, permute=fw_spec['permute'], k=cur_k,\
-                                                                       ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
+                                                                       ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'], change_var_names=fw_spec['change_var_names'])
 
                         start_time = time.time()
                         (outcome, empirical_density) = sat.solve(mean_runtime*MAX_TIMEOUT_MULTIPLE)
@@ -375,11 +377,11 @@ class RunSpecificExperimentBatch(FireTaskBase):
                             sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
                             if fw_spec['f_block'] == '1':
                                 sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0, permute=fw_spec['permute'], k=cur_k,\
-                                                                           ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
+                                                                           ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'], change_var_names=fw_spec['change_var_names'])
                             else:
                                 assert(fw_spec['f_block'] == '1minusF')
                                 sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0-f_prime, permute=fw_spec['permute'], k=cur_k,\
-                                                                           ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'])
+                                                                           ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'], change_var_names=fw_spec['change_var_names'])
 
                             start_time = time.time()
                             (outcome, empirical_density) = sat.solve(mean_runtime*MAX_TIMEOUT_MULTIPLE)
@@ -422,7 +424,7 @@ def run_experiment():
     #PROBLEM_NAMES = ['c432.isc']
     #PROBLEM_NAMES = ['hypercube3.cnf']#, 'hypercube4.cnf', 'hypercube5.cnf', 'hypercube6.cnf', 'hypercube7.cnf']
     #PROBLEM_NAMES = ['hypercube3.cnf']#, 'hypercube4.cnf', 'hypercube5.cnf', 'hypercube6.cnf', 'hypercube7.cnf', 'hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
-    PROBLEM_NAMES = ['hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
+    PROBLEM_NAMES = ['c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
 
     REPEATS_OF_EXPERIMENT = 10
 
@@ -434,10 +436,10 @@ def run_experiment():
 #                                                  ('1', True, 3), ('1minusF', True, 3), ('1', False, 3), ('1minusF', False, 3),\
 #                                                  ('1', True, 1), ('1minusF', True, 1), ('1', False, 1), ('1minusF', False, 1),
 #                                                  ('1', False, 0)]
-                for (f_block, permute, k, ADD_CONSTRAINT_ALL_ONES, adjust_f) in \
-                    [('1minusF', True, 'maxConstant', False, True),\
-                     ('1minusF', False, 'maxConstant', False, True),\
-                     ('1', False, 0, False, True)]:  
+                for (f_block, permute, k, ADD_CONSTRAINT_ALL_ONES, adjust_f, change_var_names) in \
+                    [('1minusF', True, 'maxConstant', False, True, True),\
+                     ('1minusF', False, 'maxConstant', False, True, False)]:  
+                     #('1', False, 0, False, True, False)]:  
 #                    [('1minusF', True, 'maxConstant', False, True),\
 #                     ('1', False, 0, False, True),\
 #                     ('1', True, None, False, True), ('1', False, None, False, True)]:  
@@ -462,6 +464,7 @@ def run_experiment():
                                 #False: don't adjust f's
                                 #'expectedNum1s': f denies the expected number of 1's for all methods
                                 'adjust_f': adjust_f,  
+                                'change_var_names': change_var_names,
                                 }
                     all_fireworks.append(Firework(RunSpecificExperimentBatch(), spec=cur_spec))
 
@@ -473,7 +476,7 @@ def run_experiment():
     else:
         launchpad.add_wf(workflow)
         qadapter = CommonAdapter.from_file("%s/my_qadapter.yaml" % HOME_DIRECTORY)
-        rapidfire(launchpad, FWorker(), qadapter, launch_dir='.', nlaunches='infinite', njobs_queue=350,
+        rapidfire(launchpad, FWorker(), qadapter, launch_dir='.', nlaunches='infinite', njobs_queue=NJOBS_QUEUE,
                       njobs_block=500, sleep_time=None, reserve=False, strm_lvl='INFO', timeout=None,
                       fill_mode=False)
 

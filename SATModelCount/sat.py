@@ -9,7 +9,7 @@ import math
 import numpy as np
 import copy
 
-MACHINE = 'local'#'atlas' #'atlas' or 'local'
+MACHINE = 'atlas'#'atlas' #'atlas' or 'local'
 
 if MACHINE == 'local':
     CRYPTOMINISAT5_DIRECTORY = '/Users/jkuck/software/cryptominisat-5.0.1/build'
