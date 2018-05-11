@@ -973,13 +973,8 @@ def solve_smaller_sat(problem_name, repeats, f, m):
     #exit(0)    
     #exit(0)
 
-    restricting_hypercube = {}
-    for var_idx, marginal in enumerate(approximate_marginals):
-        if marginal == 1.0:
-            restricting_hypercube[var_idx + 1] = 1
-        elif marginal == 0.0:
-            restricting_hypercube[var_idx + 1] = 0
 
+    restricting_hypercube = get_restricting_hypercube(approximate_marginals)
     print 'len(restricting_hypercube):', len(restricting_hypercube)
     #print 'restricting_hypercube1:', restricting_hypercube
     #exit(0)
@@ -1068,9 +1063,9 @@ def get_restricting_hypercube(approximate_marginals):
     '''
     restricting_hypercube = {}
     for var_idx, marginal in enumerate(approximate_marginals):
-        if marginal == 1.0:
+        if marginal > .9:
             restricting_hypercube[var_idx + 1] = 1
-        elif marginal == 0.0:
+        elif marginal < 0.1:
             restricting_hypercube[var_idx + 1] = 0
     return restricting_hypercube
 
@@ -1078,8 +1073,8 @@ if __name__ == '__main__':
     #m = 20#33
     #f = 0.03#0.05
 
-    m = 35
-    f = .033
+    m = 50
+    f = .003
     f_block = 1
     REPEATS = 100
     all_runtimes = []
@@ -1088,7 +1083,7 @@ if __name__ == '__main__':
 #    PROBLEM_NAMES = ['c432.isc', 'c499.isc', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'ra.cnf', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'log-1.cnf', 'log-2.cnf', 'lang12.cnf']
 #    PROBLEM_NAMES = ['sat-grid-pbl-0010.cnf']
 #    PROBLEM_NAMES = ['tire-4.cnf']
-    PROBLEM_NAMES = ['c432.isc']
+    PROBLEM_NAMES = ['c880.isc']
     USE_MARGINALS = False
 
     #solve_smaller_sat(problem_name=PROBLEM_NAMES[0], repeats=REPEATS, f=f, m=m)

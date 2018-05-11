@@ -61,6 +61,10 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
         allInfo = {}
 
     for exp_idx in range(file_count):
+        print exp_idx
+        #if exp_idx in [4, 6, 7, 8]:
+        #if exp_idx in [0,1,]:
+        #    continue
         cur_filename = '%s%d.txt' % (filename_base, exp_idx)
         if os.path.isfile(cur_filename):        
 #            print "reading file:", cur_filename
@@ -68,36 +72,36 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
             reader = open(cur_filename, 'r')
             while True:
                 line = reader.readline().split()
-                if len(line) < 15:
-                    if len(line) == 14 and line[13] == 'None':
-                        #problem timed out
-                        f = float(line[3])
-                        m = int(line[11])   
-                        m_vals.add(m)
-                        f_vals.add(f)
-                        if MAX_TIMEOUT_MULTIPLE: #we saved the exact timeout multiple (SAT problems timeout after MAX_TIMEOUT_MULTIPLE*unperturbed_runtime)
-                            all_runtimes_dict[(f,m)].append(MAX_TIMEOUT_MULTIPLE)
-                        else: #we didn't save the exact timeout multiple, so using an approximate runtime
-                            approximate_runtime = float(line[9])
-                            approximate_normalized_runtime = approximate_runtime/mean_unperturbed_run_time
-                            all_runtimes_dict[(f,m)].append(approximate_normalized_runtime)
-                            #print 'problem timed out, approximate_normalized_runtime =', approximate_normalized_runtime                          
-                        num_trials_dict[(f,m)] += 1
-                        num_TIMEOUT_dict[(f,m)] += 1
-                        continue
-
-                    elif len(line) == 2:
+                if len(line) < 3:
+                    if len(line) == 2:
                         if line[0] == 'MAX_TIMEOUT_MULTIPLE=':
                             MAX_TIMEOUT_MULTIPLE = float(line[1])
                             continue                       
                         else:
-                            assert(line[0] == 'mean_unperturbed_run_time=')
+                            assert(line[0] == 'mean_unperturbed_run_time='), (line[0], line)
                             mean_unperturbed_run_time = float(line[1])
                             continue                        
 
                     else:
                         break
-        
+                #print line
+                if line[13] == 'None':
+                    #problem timed out
+                    f = float(line[3])
+                    m = int(line[11])   
+                    m_vals.add(m)
+                    f_vals.add(f)
+                    if MAX_TIMEOUT_MULTIPLE: #we saved the exact timeout multiple (SAT problems timeout after MAX_TIMEOUT_MULTIPLE*unperturbed_runtime)
+                        all_runtimes_dict[(f,m)].append(MAX_TIMEOUT_MULTIPLE)
+                    else: #we didn't save the exact timeout multiple, so using an approximate runtime
+                        approximate_runtime = float(line[9])
+                        approximate_normalized_runtime = approximate_runtime/mean_unperturbed_run_time
+                        all_runtimes_dict[(f,m)].append(approximate_normalized_runtime)
+                        #print 'problem timed out, approximate_normalized_runtime =', approximate_normalized_runtime                          
+                    num_trials_dict[(f,m)] += 1
+                    num_TIMEOUT_dict[(f,m)] += 1
+                    continue
+
                 #print line
                 f = float(line[3])
                 run_time = float(line[14][0:-1])

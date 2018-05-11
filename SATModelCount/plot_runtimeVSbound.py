@@ -53,12 +53,18 @@ regular_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_p
 permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=None_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
 REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
-PROBLEM_NAME = 'tire-4'
+PROBLEM_NAME = 'c880'
 #original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 #permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
-original_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+original_filebase = 'slurm_postUAI1/test_permute/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 permutedBlockDiag_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+notPermutedBlockDiag_filebase = 'test_permute1/%s/f_block=1minusF_permute=False_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_changeVars_filebase = 'test_permute1/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_fis1_filebase = 'slurm_postUAI1/test_permute/%s/f_block=1_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
+original_filebase = permutedBlockDiag_changeVars_filebase
+permutedBlockDiag_filebase = notPermutedBlockDiag_filebase
+#permutedBlockDiag_filebase = permutedBlockDiag_changeVars_filebase
 
 USE_MULTIPLE_FILES = True #aggregate results from multiple files if true
 FILE_COUNT = 10 #number of experiments run on possible different machines
