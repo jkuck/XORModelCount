@@ -15,11 +15,14 @@ if MACHINE == 'local':
     CRYPTOMINISAT5_DIRECTORY = '/Users/jkuck/software/cryptominisat-5.0.1/build'
     SAT_SOLVER = "CRYPTOMINISAT5"
     #SAT_SOLVER = "ORIGINAL"
+    SAT_PROBLEM_FOLDER = '../../winter_2018/low_density_parity_checks/SAT_problems_cnf'
 else:
     import matplotlib
     matplotlib.use('Agg') #prevent error running remotely
     import matplotlib.pyplot as plt
     INSTALL_DIRECTORY = '/atlas/u/jkuck'
+    SAT_PROBLEM_FOLDER = '/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/'
+
 
 # Runs a system command without timeout
 def run_command(command):
@@ -565,7 +568,8 @@ class SAT:
             if self.max_xor > 0:
                 print("Maximum xor length is %d. Added %d new variables" % (self.max_xor, self.new_variables))
 
-    def add_regular_constraints_constantF_permuted(self, m, f, f_block, permute=True, k=None, ADD_CONSTRAINT_ALL_ONES=False, change_var_names=True):
+    def add_regular_constraints_constantF_permuted(self, m, f, f_block, permute=True, k=None, \
+        ADD_CONSTRAINT_ALL_ONES=False, change_var_names=True, variable_subset=None):
         """ 
         Add m parity constraints, according to the new combined ensemble without decreasing f,
         adding block 1's with probability f_block, 
@@ -687,11 +691,13 @@ class SAT:
                 #is this element part of a permuted block?
                 if (permuted_block_diag_matrix[i, atom-1] == 1):
                     #if so, add variable with probabilty f_block
-                    if random.random() < f_block:
+                    if (random.random() < f_block and variable_subset == None) or\
+                       (random.random() < f_block and atom in variable_subset):
                         new_function.append(atom)
                         total_vars_in_parity_constraints += 1
                 #if this element isn't part of a permuted block, add variable with probability f_updated
-                elif random.random() < f_updated:
+                elif (random.random() < f_updated and variable_subset == None) or\
+                  (random.random() < f_updated and atom in variable_subset):
                     new_function.append(atom)
                     total_vars_in_parity_constraints += 1
 
@@ -719,6 +725,347 @@ class SAT:
             print("Generated %d parity constraints" % m)
             if self.max_xor > 0:
                 print("Maximum xor length is %d. Added %d new variables" % (self.max_xor, self.new_variables))
+
+
+    def add_regular_constraints_constantF_permuted_debug(self, m, f, f_block, permute=True, k=None, \
+        ADD_CONSTRAINT_ALL_ONES=False, change_var_names=True, variable_subset=None):
+        """ 
+        Add m parity constraints, according to the new combined ensemble without decreasing f,
+        adding block 1's with probability f_block, 
+        and permuting columns
+        """
+        if ADD_CONSTRAINT_ALL_ONES:
+            m_effective = m - 1
+        else:
+            m_effective = m
+
+        if k==None or k*m_effective > self.n: #use k = n/m_effective
+            k_low = int(math.floor(float(self.n) / m_effective))
+            k_high = int(math.ceil(float(self.n) / m_effective))
+        else:
+            k_low = k
+            k_high = k
+            
+        number_k_high_blocks = self.n%m_effective
+        k_range = [0]
+        for i in range(number_k_high_blocks):
+            k_range.append(k_range[i] + k_high)
+        for i in range(number_k_high_blocks, m_effective):
+            k_range.append(k_range[i] + k_low)            
+        if k==None or k*m_effective > self.n: #use k = n/m_effective
+            assert(k_range[-1] == self.n)
+#        print k_range
+        block_diag_matrix = np.zeros((m, self.n))
+        #construct block diagonal 1's matrix
+        for i in range(0, m):
+            for atom in range(1, self.n+1):
+                if ADD_CONSTRAINT_ALL_ONES:
+                    if i == 0:
+                        block_diag_matrix[i, atom-1] = 1
+                    elif (atom > k_range[(i-1)] and atom <= k_range[(i-1)+1]):
+                        block_diag_matrix[i, atom-1] = 1
+                else:
+                    if (atom > k_range[i] and atom <= k_range[i+1]):
+                        block_diag_matrix[i, atom-1] = 1
+#        print block_diag_matrix
+        #permute the columns of the block diagonal matrix
+        if permute and (not change_var_names):
+            permuted_block_diag_matrix = np.swapaxes(np.random.permutation(np.swapaxes(block_diag_matrix,0,1)),0,1)
+        elif permute and change_var_names:
+            #permute columns of the parity constraint matrix, but keep blocks of ones by renaming the orginal variables
+            permuted_vars_matrix = np.swapaxes(np.random.permutation(np.swapaxes(block_diag_matrix,0,1)),0,1)
+            new_var_name = 1
+            orig_var_names = set()
+            #dictionary with key: original variable name (1 indexd), value: new variable name (1 indexd)
+            new_var_names = {}
+            for row in range(permuted_vars_matrix.shape[0]):
+                for col in range(permuted_vars_matrix.shape[1]):
+                    if permuted_vars_matrix[row, col] == 1:
+                        new_var_names[col+1] = new_var_name
+                        orig_var_names.add(col+1)
+                        new_var_name+=1
+
+            for orig_var_name in range(1, self.n+1):
+                if not orig_var_name in orig_var_names:
+                    new_var_names[orig_var_name] = new_var_name
+                    new_var_name+=1
+                    orig_var_names.add(orig_var_name)  
+                           
+            assert(len(orig_var_names) == self.n), (len(orig_var_names), self.n)
+            assert(new_var_name == self.n + 1), (new_var_name, self.n + 1)
+
+            renamed_clauses = []
+            #perform duplication
+            for cur_clause in self.clauses:
+                new_clause = []
+                for literal in cur_clause.split():
+                    var = np.abs(int(literal))
+                    literal_sign = np.sign(int(literal))
+                    if var > 0:
+                        if var in new_var_names:
+                            new_literal = literal_sign*(new_var_names[var])
+                        else:
+                            new_literal = literal
+                        new_clause.append(new_literal)
+                    else:
+                        new_clause.append(0)                    
+                renamed_clauses.append(' '.join(str(var) for var in new_clause))
+            self.clauses = renamed_clauses
+            permuted_block_diag_matrix = block_diag_matrix
+
+            #print new_var_names
+            #print permuted_block_diag_matrix
+            #prin
+        else:
+            permuted_block_diag_matrix = block_diag_matrix
+#        print permuted_block_diag_matrix
+        f_updated = f 
+
+        self.hash_functions = []
+        self.new_variables = 0
+        self.fail_apriori = False
+
+        curIndex = self.n + 1
+
+        total_vars_in_parity_constraints = 0
+
+        SAT_problem_debug = copy.deepcopy(self)
+
+        for i in range(0, m):
+            new_function = []
+            new_function_debug = []
+            for atom in range(1, self.n + 1):
+                #check block diagonal construction
+                if ADD_CONSTRAINT_ALL_ONES:
+                    if i == 0:
+                        assert (block_diag_matrix[i, atom-1] == 1)
+                    elif (atom > k_range[(i-1)] and atom <= k_range[(i-1)+1]):
+                        assert (block_diag_matrix[i, atom-1] == 1)
+                    else:
+                        assert (block_diag_matrix[i, atom-1] == 0)
+                else:
+                    if (atom > k_range[i] and atom <= k_range[i+1]):
+                        assert (block_diag_matrix[i, atom-1] == 1)
+                    else:
+                        assert (block_diag_matrix[i, atom-1] == 0)
+
+                #is this element part of a permuted block?
+                if (permuted_block_diag_matrix[i, atom-1] == 1):
+                    #if so, add variable with probabilty f_block
+                    if random.random() < f_block:
+                        new_function.append(atom)
+                        total_vars_in_parity_constraints += 1
+                        if (variable_subset != None) and (atom in variable_subset):
+                            new_function_debug.append(atom)
+
+                #if this element isn't part of a permuted block, add variable with probability f_updated
+                elif random.random() < f_updated:
+                    new_function.append(atom)
+                    total_vars_in_parity_constraints += 1
+                    if (variable_subset != None) and (atom in variable_subset):
+                        new_function_debug.append(atom)
+                        
+
+            if len(new_function) > 0:                    
+                if random.randint(0, 1) == 0:
+                    new_function[0] = -new_function[0]
+                if self.max_xor > 0:
+                    while len(new_function) > self.max_xor:
+                        temp = new_function[0:self.max_xor - 1]
+                        new_function = [curIndex] + new_function[self.max_xor - 1:]
+                        temp.append(curIndex)
+                        curIndex += 1
+                        self.new_variables += 1
+                        self.hash_functions.append(temp)
+                self.hash_functions.append(new_function)
+            else:
+                if random.randint(0, 1) == 1:
+                    self.fail_apriori = True
+
+            if len(new_function_debug) > 0:                    
+                if random.randint(0, 1) == 0:
+                    new_function_debug[0] = -new_function_debug[0]
+                if SAT_problem_debug.max_xor > 0:
+                    while len(new_function_debug) > SAT_problem_debug.max_xor:
+                        temp = new_function_debug[0:SAT_problem_debug.max_xor - 1]
+                        new_function_debug = [curIndex] + new_function_debug[SAT_problem_debug.max_xor - 1:]
+                        temp.append(curIndex)
+                        curIndex += 1
+                        SAT_problem_debug.new_variables += 1
+                        SAT_problem_debug.hash_functions.append(temp)
+                SAT_problem_debug.hash_functions.append(new_function_debug)
+            else:
+                if random.randint(0, 1) == 1:
+                    SAT_problem_debug.fail_apriori = True
+
+        print 'empirical density = ', total_vars_in_parity_constraints/(self.n*m)
+
+        if self.verbose:
+            print("Generated %d parity constraints" % m)
+            if self.max_xor > 0:
+                print("Maximum xor length is %d. Added %d new variables" % (self.max_xor, self.new_variables))
+
+        return SAT_problem_debug
+
+    def add_regular_constraints_subsetOfVariables(self, m, f, f_block, permute=True, k=None, \
+        ADD_CONSTRAINT_ALL_ONES=False, change_var_names=True, variable_subset=[]):
+        """ 
+        Add m parity constraints, according to the new combined ensemble without decreasing f,
+        adding block 1's with probability f_block, 
+        and permuting columns
+        """
+        if variable_subset == []:
+            variable_subset=[i+1 for i in range(self.n)]
+
+        if ADD_CONSTRAINT_ALL_ONES:
+            m_effective = m - 1
+        else:
+            m_effective = m
+
+        if k==None or k*m_effective > len(variable_subset): #use k = n/m_effective
+            k_low = int(math.floor(float(len(variable_subset)) / m_effective))
+            k_high = int(math.ceil(float(len(variable_subset)) / m_effective))
+        else:
+            k_low = k
+            k_high = k
+            
+        number_k_high_blocks = len(variable_subset)%m_effective
+        k_range = [0]
+        for i in range(number_k_high_blocks):
+            k_range.append(k_range[i] + k_high)
+        for i in range(number_k_high_blocks, m_effective):
+            k_range.append(k_range[i] + k_low)            
+        if k==None or k*m_effective > len(variable_subset): #use k = n/m_effective
+            assert(k_range[-1] == len(variable_subset))
+#        print k_range
+        block_diag_matrix = np.zeros((m, len(variable_subset)))
+        #construct block diagonal 1's matrix
+        for i in range(0, m):
+            for atom in range(1, len(variable_subset)+1):
+                if ADD_CONSTRAINT_ALL_ONES:
+                    if i == 0:
+                        block_diag_matrix[i, atom-1] = 1
+                    elif (atom > k_range[(i-1)] and atom <= k_range[(i-1)+1]):
+                        block_diag_matrix[i, atom-1] = 1
+                else:
+                    if (atom > k_range[i] and atom <= k_range[i+1]):
+                        block_diag_matrix[i, atom-1] = 1
+#        print block_diag_matrix
+        #permute the columns of the block diagonal matrix
+        if permute and (not change_var_names):
+            permuted_block_diag_matrix = np.swapaxes(np.random.permutation(np.swapaxes(block_diag_matrix,0,1)),0,1)
+        elif permute and change_var_names:
+            #permute columns of the parity constraint matrix, but keep blocks of ones by renaming the orginal variables
+            permuted_vars_matrix = np.swapaxes(np.random.permutation(np.swapaxes(block_diag_matrix,0,1)),0,1)
+            new_var_name = 1
+            orig_var_names = set()
+            #dictionary with key: original variable name (1 indexd), value: new variable name (1 indexd)
+            new_var_names = {}
+            for row in range(permuted_vars_matrix.shape[0]):
+                for col in range(permuted_vars_matrix.shape[1]):
+                    if permuted_vars_matrix[row, col] == 1:
+                        new_var_names[col+1] = new_var_name
+                        orig_var_names.add(col+1)
+                        new_var_name+=1
+
+            for orig_var_name in range(1, len(variable_subset)+1):
+                if not orig_var_name in orig_var_names:
+                    new_var_names[orig_var_name] = new_var_name
+                    new_var_name+=1
+                    orig_var_names.add(orig_var_name)  
+                           
+            assert(len(orig_var_names) == len(variable_subset)), (len(orig_var_names), len(variable_subset))
+            assert(new_var_name == len(variable_subset) + 1), (new_var_name, len(variable_subset) + 1)
+
+            renamed_clauses = []
+            #perform duplication
+            for cur_clause in self.clauses:
+                new_clause = []
+                for literal in cur_clause.split():
+                    var = np.abs(int(literal))
+                    literal_sign = np.sign(int(literal))
+                    if var > 0:
+                        if var in new_var_names:
+                            new_literal = literal_sign*(new_var_names[var])
+                        else:
+                            new_literal = literal
+                        new_clause.append(new_literal)
+                    else:
+                        new_clause.append(0)                    
+                renamed_clauses.append(' '.join(str(var) for var in new_clause))
+            self.clauses = renamed_clauses
+            permuted_block_diag_matrix = block_diag_matrix
+
+            #print new_var_names
+            #print permuted_block_diag_matrix
+            #prin
+        else:
+            permuted_block_diag_matrix = block_diag_matrix
+#        print permuted_block_diag_matrix
+        f_updated = f 
+
+        self.hash_functions = []
+        self.new_variables = 0
+        self.fail_apriori = False
+
+        curIndex = len(variable_subset) + 1
+
+        total_vars_in_parity_constraints = 0
+
+        for i in range(0, m):
+            new_function = []
+
+            for (var_idx, var_name) in enumerate(variable_subset):
+                #check block diagonal construction
+                if ADD_CONSTRAINT_ALL_ONES:
+                    if i == 0:
+                        assert (block_diag_matrix[i, var_idx] == 1)
+                    elif (var_idx+1 > k_range[(i-1)] and var_idx+1 <= k_range[(i-1)+1]):
+                        assert (block_diag_matrix[i, var_idx] == 1)
+                    else:
+                        assert (block_diag_matrix[i, var_idx] == 0)
+                else:
+                    if (var_idx+1 > k_range[i] and var_idx+1 <= k_range[i+1]):
+                        assert (block_diag_matrix[i, var_idx] == 1)
+                    else:
+                        assert (block_diag_matrix[i, var_idx] == 0)
+
+                #is this element part of a permuted block?
+                if (permuted_block_diag_matrix[i, var_idx] == 1):
+                    #if so, add variable with probabilty f_block
+                    if random.random() < f_block:
+                        new_function.append(var_name)
+                        total_vars_in_parity_constraints += 1
+                #if this element isn't part of a permuted block, add variable with probability f_updated
+                elif random.random() < f_updated:
+                    new_function.append(var_name)
+                    total_vars_in_parity_constraints += 1
+
+            if len(new_function) == 0:
+                if random.randint(0, 1) == 0:
+                    continue
+                else:
+                    self.fail_apriori = True
+                    return
+            if random.randint(0, 1) == 0:
+                new_function[0] = -new_function[0]
+            if self.max_xor > 0:
+                while len(new_function) > self.max_xor:
+                    temp = new_function[0:self.max_xor - 1]
+                    new_function = [curIndex] + new_function[self.max_xor - 1:]
+                    temp.append(curIndex)
+                    curIndex += 1
+                    self.new_variables += 1
+                    self.hash_functions.append(temp)
+            self.hash_functions.append(new_function)
+
+        print 'empirical density = ', total_vars_in_parity_constraints/(len(variable_subset)*m)
+
+        if self.verbose:
+            print("Generated %d parity constraints" % m)
+            if self.max_xor > 0:
+                print("Maximum xor length is %d. Added %d new variables" % (self.max_xor, self.new_variables))
+
 
 
     def add_permutation_constraints(self, m, f):
@@ -814,6 +1161,7 @@ class SAT:
             else:
                 return ((False, 0), -1)
 
+
         if not os.path.isdir("tmp"):
             os.mkdir("tmp")
         filename = "tmp/SAT_" + str(self.id) + ".cnf"
@@ -832,6 +1180,15 @@ class SAT:
                 ofstream.write(str(item) + " ")
             ofstream.write("0\n")
         ofstream.close()
+
+        #DEBUG
+        #print os.getcwd()
+        print 'wrote file:', filename
+        print "hash_functions:", self.hash_functions
+        #exit(0)
+        #END DEBUG
+
+
         if parity_constraint_count > 0:
             empirical_density = total_vars_in_parity_constraints/(self.n*parity_constraint_count)
         else:
@@ -899,14 +1256,14 @@ class SAT:
         return None
 
 def approximate_marginals_func(problem_name, repeats, f, m, verbose=True):
-    sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)    
+    sat = SAT("%s/%s" % (SAT_PROBLEM_FOLDER,problem_name), verbose=False, duplicate=0)    
     approximate_marginals = np.zeros(sat.n)
     total_satisfied_sol_found = 0
 
     runtimes = []
     SAT_runtimes = []
     for i in range(repeats):
-        sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
+        sat = SAT("%s/%s" % (SAT_PROBLEM_FOLDER,problem_name), verbose=False, duplicate=0)
 
         REGULAR = False
 
@@ -957,7 +1314,7 @@ def approximate_marginals_func(problem_name, repeats, f, m, verbose=True):
     #exit(0)
 
 def solve_smaller_sat(problem_name, repeats, f, m):
-    sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)    
+    sat = SAT("%s/%s" % (SAT_PROBLEM_FOLDER,problem_name), verbose=False, duplicate=0)    
 
     approximate_marginals, approximate_marginals_sequential_runtime, approximate_marginals_parallel_runtime = approximate_marginals_func(problem_name=problem_name, repeats=100, f=.03, m=5)
     
@@ -992,7 +1349,7 @@ def solve_smaller_sat(problem_name, repeats, f, m):
         print i,
         #print '#'*80
         #print 'iter:', i
-        sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
+        sat = SAT("%s/%s" % (SAT_PROBLEM_FOLDER,problem_name), verbose=False, duplicate=0)
 
         hypercube_SAT_problem, outside_hypercube_SAT_problem, restricting_hypercube = sat.construct_smaller_SAT_problem(restricting_hypercube)
         hypercube_SAT_problem.add_parity_constraints(m=m, f=f)
@@ -1069,11 +1426,107 @@ def get_restricting_hypercube(approximate_marginals):
             restricting_hypercube[var_idx + 1] = 0
     return restricting_hypercube
 
+def get_variable_subset(problem_name):
+    filename = '/atlas/u/jkuck/mis/mis_results/%s.out' % problem_name.split('.')[0]
+
+    ifstream = open(filename)
+    line = ifstream.readline().split()
+    assert(line[0] == 'v' and line[-1] == '0')
+    variables = line[1:-1]
+    ifstream.close()
+    variables_as_ints = []
+    for var in variables:
+        variables_as_ints.append(int(var))
+    return variables_as_ints
+
+def test_variable_subset(problem_name='log-1.cnf'):
+    m = 70
+    f = .04
+    REPEATS = 100
+    #VARIABLE_SUBSET = []
+    VARIABLE_SUBSET = get_variable_subset(problem_name)
+    #sat = SAT("%s/%s" % (SAT_PROBLEM_FOLDER,problem_name), verbose=False, duplicate=0)
+    #VARIABLE_SUBSET = [i for i in range(1, sat.n+1) if not(i in VARIABLE_SUBSET)]
+
+    all_runtimes = []
+    all_runtimes_debug = []
+    SAT_runtimes = []
+    SAT_runtimes_debug = []
+    total_satisfied_sol_found = 0
+    total_satisfied_sol_found_debug = 0
+
+    for i in range(REPEATS):
+        #print '#'*80
+        #print 'iter:', i
+        sat = SAT("%s/%s" % (SAT_PROBLEM_FOLDER,problem_name), verbose=False, duplicate=0)
+
+        REGULAR = True
+
+        if REGULAR:
+            if VARIABLE_SUBSET == []:
+                VARIABLE_SUBSET=[i+1 for i in range(sat.n)]
+
+            k = np.floor(len(VARIABLE_SUBSET)/m)
+            k_density = k/len(VARIABLE_SUBSET)
+            if k_density > f: #we need to decrease k
+                k = np.floor(f*len(VARIABLE_SUBSET))
+
+            f_prime = (f*len(VARIABLE_SUBSET) - k)/(len(VARIABLE_SUBSET) - 2*k)
+            print 'f_prime:', f_prime, 'k=', k, 'len(VARIABLE_SUBSET)=', len(VARIABLE_SUBSET)
+
+            sat.add_regular_constraints_subsetOfVariables(m=m, f=f_prime, f_block=1-f_prime, permute=True, k=k, ADD_CONSTRAINT_ALL_ONES=False, change_var_names=False, variable_subset=VARIABLE_SUBSET)
+      
+            #SAT_problem_debug = sat.add_regular_constraints_constantF_permuted_debug(m=m, f=f_prime, f_block=1-f_prime, permute=True, k=k, ADD_CONSTRAINT_ALL_ONES=False, change_var_names=False, variable_subset=VARIABLE_SUBSET)
+        else:
+            sat.add_regular_constraints_subsetOfVariables(m=m, f=f, f_block=0, permute=False, k=0, ADD_CONSTRAINT_ALL_ONES=False, change_var_names=False, variable_subset=VARIABLE_SUBSET)
+
+        (outcome, empirical_density, satisfying_solution) = sat.solve(3600, return_satisfying_solution=True)
+        #(outcome_debug, empirical_density_debug, satisfying_solution_debug) = SAT_problem_debug.solve(3600, return_satisfying_solution=True)
+        #assert(outcome[0] == outcome_debug[0])
+
+        #print "satisfying_solution:", satisfying_solution
+        elapsed_time = outcome[1]
+        all_runtimes.append(elapsed_time)
+        print "satisfiable:", outcome[0], 'runtime:', outcome[1]
+        if outcome[0] == True:
+            total_satisfied_sol_found += 1
+            SAT_runtimes.append(elapsed_time)
+
+        #all_runtimes_debug.append(outcome_debug[1])
+        #if outcome_debug[0] == True:
+        #    total_satisfied_sol_found_debug += 1
+        #    SAT_runtimes.append(elapsed_time)
+
+    print '-'*30, 'ALL VARIABLES', '-'*30
+    print "mean_time =", np.mean(all_runtimes)
+    print "median_time =", np.median(all_runtimes)
+    print "min_time =", np.min(all_runtimes)
+    print "max_time =", np.max(all_runtimes)
+    #print "max_time =", max(all_runtimes)
+    #print "max_SAT_time =", max(SAT_runtimes)
+    print "total_satisfied_sol_found =", total_satisfied_sol_found
+    print 'len(VARIABLE_SUBSET) =', len(VARIABLE_SUBSET)
+    print VARIABLE_SUBSET
+
+    print '-'*30, 'SUBSET OF VARIABLES', '-'*30
+    print "mean_time =", np.mean(all_runtimes_debug)
+    print "median_time =", np.median(all_runtimes_debug)
+    print "min_time =", np.min(all_runtimes_debug)
+    print "max_time =", np.max(all_runtimes_debug)
+
+    print "total_satisfied_sol_found =", total_satisfied_sol_found_debug
+    print 'len(VARIABLE_SUBSET) =', len(VARIABLE_SUBSET)
+
+
+
 if __name__ == '__main__':
+    #print get_variable_subset('log-1.cnf')
+    test_variable_subset()
+    exit(0)
     #m = 20#33
     #f = 0.03#0.05
 
-    m = 50
+    m = 60
     f = .003
     f_block = 1
     REPEATS = 100
@@ -1089,7 +1542,7 @@ if __name__ == '__main__':
     #solve_smaller_sat(problem_name=PROBLEM_NAMES[0], repeats=REPEATS, f=f, m=m)
     #exit(0)
     for problem_name in PROBLEM_NAMES:
-        sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)        
+        sat = SAT("%s/%s" % (SAT_PROBLEM_FOLDER,problem_name), verbose=False, duplicate=0)        
         if USE_MARGINALS:
             approximate_marginals, approximate_marginals_sequential_runtime, approximate_marginals_parallel_runtime = approximate_marginals_func(problem_name=problem_name, repeats=100, f=.07, m=10)
             #approximate_marginals = np.array([1 for i in range(50)] + [.5 for i in range(50)]) #for hypercube1
@@ -1102,7 +1555,7 @@ if __name__ == '__main__':
         for i in range(REPEATS):
             #print '#'*80
             #print 'iter:', i
-            sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
+            sat = SAT("%s/%s" % (SAT_PROBLEM_FOLDER,problem_name), verbose=False, duplicate=0)
 
             REGULAR = True
 
@@ -1114,7 +1567,7 @@ if __name__ == '__main__':
     
                 f_prime = (f*sat.n - k)/(sat.n - 2*k)
                 print 'f_prime:', f_prime, 'k=', k, 'n=', sat.n
-                sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1-f_prime, permute=True, k=k, ADD_CONSTRAINT_ALL_ONES=False, change_var_names=False)
+                sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1-f_prime, permute=False, k=k, ADD_CONSTRAINT_ALL_ONES=False, change_var_names=False)
           
             else:
                 if USE_MARGINALS:

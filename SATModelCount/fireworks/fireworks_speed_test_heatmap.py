@@ -102,33 +102,33 @@ if TEST_LOCAL:
 
             }
 else:
-    f_ranges = {'c432.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+    f_ranges = {'c432.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
             #'c432.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 7)],
             #'c432.isc': [.0001, .001],
-            'c499.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'lang12.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'c880.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'c1355.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'c1908.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'c2670.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'sat-grid-pbl-0010.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'sat-grid-pbl-0015.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'sat-grid-pbl-0020.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'ra.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'tire-1.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'tire-2.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'tire-3.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'tire-4.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'log-1.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'log-2.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'hypercube.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'hypercube1.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'hypercube2.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'hypercube3.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'hypercube4.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'hypercube5.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'hypercube6.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
-            'hypercube7.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 50)],
+            'c499.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'lang12.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'c880.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'c1355.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'c1908.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'c2670.isc': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'sat-grid-pbl-0010.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'sat-grid-pbl-0015.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'sat-grid-pbl-0020.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'ra.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'tire-1.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'tire-2.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'tire-3.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'tire-4.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'log-1.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'log-2.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'hypercube.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'hypercube1.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'hypercube2.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'hypercube3.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'hypercube4.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'hypercube5.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'hypercube6.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
+            'hypercube7.cnf': [i/1000.0 for i in range(1,10)] + [i/100.0 for i in range(1, 10)],
 
             }
 
@@ -267,13 +267,13 @@ class RunExperimentBatch(FireTaskBase):
 @explicit_serialize
 class RunSpecificExperimentBatch(FireTaskBase):   
     def run_task(self, fw_spec):
-        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/slurm_postUAI1/reproduce_results/%s' % fw_spec['problem_name'].split('.')[0]
+        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/slurm_postUAI1/specific_MF_vals/%s' % fw_spec['problem_name'].split('.')[0]
         if not os.path.exists(RESULTS_DIRECTORY):
             os.makedirs(RESULTS_DIRECTORY)      
 
-        filename = '%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_changeVars=%s_REPEATS=%d_expIdx=%d.txt'%\
+        filename = '%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_changeVars=%s_useMIS=%s_REPEATS=%d_expIdx=%d.txt'%\
             (RESULTS_DIRECTORY, fw_spec['f_block'], fw_spec['permute'], fw_spec['k'], fw_spec['ADD_CONSTRAINT_ALL_ONES'],\
-            fw_spec['adjust_f'], fw_spec['change_var_names'], fw_spec['repeats'], fw_spec['experiment_idx'])
+            fw_spec['adjust_f'], fw_spec['change_var_names'], fw_spec['use_MIS'], fw_spec['repeats'], fw_spec['experiment_idx'])
 
         if TEST_LOCAL:
             REPEATS = 1
@@ -292,9 +292,10 @@ class RunSpecificExperimentBatch(FireTaskBase):
         logger.write('median_unperturbed_run_time_%f_trials: %f\n' % (REPEATS, np.median(all_times)))
         logger.write('max_unperturbed_run_time_%f_trials: %f\n' % (REPEATS, np.max(all_times)))
         logger.write('min_unperturbed_run_time_%f_trials: %f\n' % (REPEATS, np.min(all_times)))
+        logger.write("MAX_TIMEOUT_MULTIPLE= %d\n" % MAX_TIMEOUT_MULTIPLE)
         logger.close()                    
         unperturbed_runtime = np.median(all_times)
-        
+
         #for dup_copies in [0, 1, 3, 7, 15, 31, 63, 127]:
         for dup_copies in [0]:
         #for dup_copies in [7, 15, 31, 63, 127]:
@@ -307,7 +308,12 @@ class RunSpecificExperimentBatch(FireTaskBase):
                     #compute f such that any construction has the density specified by f, not probability of flipping specified by f                    
                     if fw_spec['adjust_f'] == True:
                         sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=0)
-                        N = sat.n 
+                        
+                        if fw_spec['use_MIS'] == True:
+                            variable_MIS = get_variable_subset(fw_spec['problem_name']) #minimal independent support https://link.springer.com/content/pdf/10.1007%2Fs10601-015-9204-z.pdf
+                            N = len(variable_MIS)
+                        else:
+                            N = sat.n 
 
                         if fw_spec['ADD_CONSTRAINT_ALL_ONES']:
                             m_effective = m - 1
@@ -431,6 +437,99 @@ class RunSpecificExperimentBatch(FireTaskBase):
                         if failures == fw_spec['repeats']:
                             break
 
+
+@explicit_serialize
+class RunSpecificMFValsExperimentBatch(FireTaskBase):   
+    def run_task(self, fw_spec):
+        RESULTS_DIRECTORY = '/atlas/u/jkuck/XORModelCount/SATModelCount/fireworks/slurm_postUAI1/specific_MF_vals/%s' % fw_spec['problem_name'].split('.')[0]
+        if not os.path.exists(RESULTS_DIRECTORY):
+            os.makedirs(RESULTS_DIRECTORY)      
+
+        filename = '%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_changeVars=%s_REPEATS=%d_expIdx=%d.txt'%\
+            (RESULTS_DIRECTORY, fw_spec['f_block'], fw_spec['permute'], fw_spec['k'], fw_spec['ADD_CONSTRAINT_ALL_ONES'],\
+            fw_spec['adjust_f'], fw_spec['change_var_names'], fw_spec['repeats'], fw_spec['experiment_idx'])
+
+        if TEST_LOCAL:
+            REPEATS = 1
+        else:
+            REPEATS = 100
+
+        all_times = []
+        for i in range(REPEATS):
+            sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=0)
+            (outcome, empirical_density) = sat.solve(3600)
+            elapsed_time = outcome[1]
+            all_times.append(elapsed_time)
+            assert(empirical_density == 0), empirical_density
+        logger = open(filename, 'w')
+        logger.write('mean_unperturbed_run_time_%f_trials: %f\n' % (REPEATS, np.mean(all_times)))
+        logger.write('median_unperturbed_run_time_%f_trials: %f\n' % (REPEATS, np.median(all_times)))
+        logger.write('max_unperturbed_run_time_%f_trials: %f\n' % (REPEATS, np.max(all_times)))
+        logger.write('min_unperturbed_run_time_%f_trials: %f\n' % (REPEATS, np.min(all_times)))
+        logger.write("MAX_TIMEOUT_MULTIPLE= %d\n" % MAX_TIMEOUT_MULTIPLE)
+        logger.close()                    
+        unperturbed_runtime = np.median(all_times)
+
+        #for dup_copies in [0, 1, 3, 7, 15, 31, 63, 127]:
+        for dup_copies in [0]:
+        #for dup_copies in [7, 15, 31, 63, 127]:
+        #    for f in [f*(dup_copies+1) for f in f_ranges[fw_spec['problem_name']]]:
+            for (m, f) in [(61, 0.02), (64, 0.03), (67, 0.02), (62, 0.02), (63, 0.02), (66, 0.03), (65, 0.02), (67, 0.03), (70, 0.03)]:
+        #        for m in m_ranges[fw_spec['problem_name']]:
+                if fw_spec['adjust_f'] == True:
+                    sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=0)
+                    N = sat.n 
+
+                    if fw_spec['ADD_CONSTRAINT_ALL_ONES']:
+                        m_effective = m - 1
+                    else:
+                        m_effective = m
+
+                    if fw_spec['k']==None:
+                        cur_k = N/m
+                    elif fw_spec['k'] == 'maxConstant':
+                        cur_k = np.floor(N/m)                            
+                    else:
+                        cur_k = fw_spec['k']
+                    k_density = cur_k/N
+                    print 'N=', N, 'm=', m, "fw_spec['k']=", fw_spec['k'], 'k_density=', k_density
+
+                    #compute the density of ones from k:                        
+                    if k_density > f: #we need to decrease k
+                        cur_k = np.floor(f*N)
+                        print "changed cur_k=", cur_k
+
+                    if fw_spec['f_block'] == '1minusF':
+                        f_prime = (f*N - cur_k)/(N - 2*cur_k)
+                        print 'f_prime=', f_prime
+                        assert(abs((1 - f_prime)*cur_k + f_prime*(N - cur_k) - N*f) < .0001), (f_prime, cur_k, N)
+                    else:
+                        assert(fw_spec['f_block'] == '1')
+                        f_prime = (f*N - cur_k)/(N - cur_k)
+                        print 'f_prime=', f_prime
+                        assert(abs(cur_k + f_prime*(N - cur_k) - N*f) < .0001), (f_prime, cur_k, N)
+                else:
+                    f_prime = f
+                for repeat in range(fw_spec['repeats']):
+                    logger = open(filename, 'a')
+                    sat = SAT("/atlas/u/jkuck/low_density_parity_checks/SAT_problems_cnf/%s"%fw_spec['problem_name'], verbose=False, instance_id=fw_spec['problem_name'], duplicate=dup_copies)
+                    if fw_spec['f_block'] == '1':
+                        sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0, permute=fw_spec['permute'], k=cur_k,\
+                                                                   ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'], change_var_names=fw_spec['change_var_names'])
+                    else:
+                        assert(fw_spec['f_block'] == '1minusF')
+                        sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1.0-f_prime, permute=fw_spec['permute'], k=cur_k,\
+                                                                   ADD_CONSTRAINT_ALL_ONES=fw_spec['ADD_CONSTRAINT_ALL_ONES'], change_var_names=fw_spec['change_var_names'])
+
+                    start_time = time.time()
+                    (outcome, empirical_density) = sat.solve(unperturbed_runtime*MAX_TIMEOUT_MULTIPLE)
+                    elapsed_time = time.time() - start_time
+                
+                    logger.write("f_prime %f f %f cur_k %f n %d time %f m %d solution %s empirical_density %f\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome, empirical_density))
+                    logger.close()
+                    print("f_prime %f f %f cur_k %f n %d time %f m %d solution %s empirical_density %f\n" % (f_prime, f, cur_k, N, elapsed_time, m, outcome, empirical_density))
+
+
 @explicit_serialize
 class CheckTimingExperiment(FireTaskBase):   
     def run_task(self, fw_spec):
@@ -496,6 +595,7 @@ def run_experiment():
     #PROBLEM_NAMES = ['hypercube3.cnf']#, 'hypercube4.cnf', 'hypercube5.cnf', 'hypercube6.cnf', 'hypercube7.cnf', 'hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
     PROBLEM_NAMES = ['c499.isc', 'c432.isc', 'tire-1.cnf', 'tire-2.cnf', 'tire-3.cnf', 'tire-4.cnf', 'lang12.cnf', 'c880.isc', 'hypercube.cnf', 'hypercube1.cnf', 'hypercube2.cnf', 'c1355.isc', 'c1908.isc', 'c2670.isc', 'sat-grid-pbl-0010.cnf', 'sat-grid-pbl-0015.cnf', 'sat-grid-pbl-0020.cnf', 'log-1.cnf', 'log-2.cnf', 'ra.cnf']
     #PROBLEM_NAMES = ['c880.isc']
+    PROBLEM_NAMES = ['log-1.cnf']
 
     REPEATS_OF_EXPERIMENT = 10
 
@@ -538,7 +638,8 @@ def run_experiment():
                                 'adjust_f': adjust_f,  
                                 'change_var_names': change_var_names,
                                 }
-                    all_fireworks.append(Firework(RunSpecificExperimentBatch(), spec=cur_spec))
+                    #all_fireworks.append(Firework(RunSpecificExperimentBatch(), spec=cur_spec))
+                    all_fireworks.append(Firework(RunSpecificMFValsExperimentBatch(), spec=cur_spec))
 
     firework_dependencies = {}
     workflow = Workflow(all_fireworks, firework_dependencies)
@@ -600,8 +701,8 @@ def run_check_timing_experiment():
                       fill_mode=False)
 
 if __name__=="__main__":
-    #run_experiment()
-    run_check_timing_experiment()
+    run_experiment()
+    #run_check_timing_experiment()
 
 
 ######################### Fireworks info copied from anothor project #########################
