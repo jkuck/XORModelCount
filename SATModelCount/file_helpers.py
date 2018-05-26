@@ -18,6 +18,9 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
         key: (f, m) pair of float, int
         value: dictionary containing all relevant information
     '''
+    total_problems_solved = 0 #number of problems solved within the time limit
+    total_problems_attempted = 0 #number of problems solved within the time limit + problems that timed out
+
     #key: (f, m)
     #value: list of all runtimes (len repeats)
     all_runtimes_dict = defaultdict(list)
@@ -61,7 +64,7 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
         allInfo = {}
 
     for exp_idx in range(file_count):
-        print exp_idx
+        #print exp_idx
         #if exp_idx in [4, 6, 7, 8]:
         #if exp_idx in [0,1,]:
         #    continue
@@ -77,14 +80,19 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
                         if line[0] == 'MAX_TIMEOUT_MULTIPLE=':
                             MAX_TIMEOUT_MULTIPLE = float(line[1])
                             continue                       
-                        else:
-                            assert(line[0] == 'mean_unperturbed_run_time='), (line[0], line)
+                        elif(line[0] == 'mean_unperturbed_run_time='):
                             mean_unperturbed_run_time = float(line[1])
+                            continue
+                        else:
+                            assert(line[0] in ['mean_unperturbed_run_time_100.000000_trials:', 'median_unperturbed_run_time_100.000000_trials:', 'max_unperturbed_run_time_100.000000_trials:', 'min_unperturbed_run_time_100.000000_trials:'])
+                            if line[0] == 'median_unperturbed_run_time_100.000000_trials:':
+                                mean_unperturbed_run_time = float(line[1])
                             continue                        
 
                     else:
                         break
                 #print line
+                total_problems_attempted += 1
                 if line[13] == 'None':
                     #problem timed out
                     f = float(line[3])
@@ -106,6 +114,7 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
                 f = float(line[3])
                 run_time = float(line[14][0:-1])
                 m = int(line[11])
+                total_problems_solved += 1
                 if line[13] == '(True,':
                     num_SAT_dict[(f,m)] += 1
                     SAT_runtimes_dict[(f,m)].append(run_time/(mean_unperturbed_run_time)) #runtime normalized by mean_unperturbed_run_time
@@ -154,4 +163,4 @@ def read_files_moreInfo_newFormat(filename_base, repeats, file_count, returnAllI
                 assert(len(curInfo['sortedSatRuntimes']) == num_SAT[f_idx, m_idx])
                 assert(len(curInfo['sortedUnsatRuntimes']) == num_UNSAT[f_idx, m_idx])
 
-    return(sorted_m_vals, sorted_f_vals, SAT_runtimes_dict, UNSAT_runtimes_dict, num_SAT, num_trials_dict, all_runtimes_dict, f_prime_dict, k_dict)
+    return(sorted_m_vals, sorted_f_vals, SAT_runtimes_dict, UNSAT_runtimes_dict, num_SAT, num_trials_dict, all_runtimes_dict, f_prime_dict, k_dict)#, total_problems_solved, total_problems_attempted)

@@ -36,12 +36,20 @@ EXPERIMENT_FOLDER = 'heatmap_result_fireworksTIMEOUTallFadjusted2'
 PROBLEM_NAME = 'log-2'
 EXPERIMENT_FOLDER = 'heatmap_result_fireworksTIMEOUT_fDensity1'
 EXPERIMENT_FOLDER = 'heatmap_result_fireworksTIMEOUT_3_9'
-PROBLEM_NAME = 'tire-4'
+EXPERIMENT_FOLDER = 'slurm_postUAI1/reproduce_results_finished'
+PROBLEM_NAME = 'log-1'
 REPEATS = 10
 FILE_COUNT = 10
-PLOT_ACTUAL_POINTS = False
+PLOT_ACTUAL_POINTS = True
 ANNOTATE_PLOTS = False
 LOAD_PRECOMPUTED_BOUNDS = True
+
+SKIP_SMALL_F = False #don't plot bounds for f < MIN_F
+MIN_F = .05
+
+SKIP_SMALL_RUNTIME = True
+MIN_RUNTIME = .2
+
 
 ############ experiment parameters ############
 # 'f_block': 1 or '1minusF', the probability with which elements in the blocks of size k are set to 1
@@ -55,23 +63,25 @@ ALL_PARAMS_TO_PLOT = [
      'permute': True,
      'k': 'maxConstant',
      'allOnesConstraint': False,
-     'adjustF': True},
+     'adjustF': True,
+     'changeVars': False},
 
      {'f_block': 1, #original baseline method where all elements are iid
     'permute': False,
     'k': 0,
     'allOnesConstraint': False,
-    'adjustF': True},]
+    'adjustF': True,
+    'changeVars': False},]
 
 #    {'f_block': '1minusF', #k3_params =
 #     'permute': True,
 #     'k': 3,
 #     'allOnesConstraint': False,}]
 
-def get_filebase(params):
-    filebase = '%s/%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_REPEATS=%d_expIdx=' \
-            % (EXPERIMENT_FOLDER, PROBLEM_NAME, params['f_block'], params['permute'], \
-               params['k'], params['allOnesConstraint'], params['adjustF'], REPEATS)
+def get_filebase(params, problem_name):
+    filebase = '%s/%s/f_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s_changeVars=%s_REPEATS=%d_expIdx=' \
+            % (EXPERIMENT_FOLDER, problem_name, params['f_block'], params['permute'], \
+               params['k'], params['allOnesConstraint'], params['adjustF'], params['changeVars'],REPEATS)
     return filebase
 
 def get_n(problem_name):
@@ -520,9 +530,9 @@ def get_parallel_upper_bound(num_UNSAT, T, n, m, f, k, UNSAT_runtimes, all_runti
     
     return (ln_upperBound, parallel_runtime)
 
-def get_all_parallel_upperBounds(params, repeats=REPEATS, file_count=FILE_COUNT):
-    filebase = get_filebase(params)
-    n = get_n(PROBLEM_NAME)
+def get_all_parallel_upperBounds(params, problem_name, repeats=REPEATS, file_count=FILE_COUNT):
+    filebase = get_filebase(params, problem_name=problem_name)
+    n = get_n(problem_name)
     print 'n=', n
     if NEW_FORMAT:
         (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes, f_prime_dict, k_dict) = \
@@ -534,6 +544,8 @@ def get_all_parallel_upperBounds(params, repeats=REPEATS, file_count=FILE_COUNT)
     parallelRuntimes = []
     for (f_idx, f_val) in enumerate((sorted_f_vals)):
 #    for f_val in [i/100 for i in range(15, 51)]:
+        if SKIP_SMALL_F and f_val < MIN_F:
+            continue
         for (m_idx, m_val) in enumerate(sorted_m_vals):    
             #if f_val > .15:
             #    break
@@ -551,6 +563,8 @@ def get_all_parallel_upperBounds(params, repeats=REPEATS, file_count=FILE_COUNT)
                     k = params['k']
                 f_prime = f_val
 
+            if SKIP_SMALL_RUNTIME and np.mean(UNSAT_runtimes[(f_val, m_val)]) < MIN_RUNTIME:
+                continue
             if f_prime == 0: #quick hack
                 f_prime = 0.0000000001
             print 'f_prime=', f_prime, 'k=', k, 'f=', f_val, 'm=', m_val
@@ -579,13 +593,14 @@ def pareto_frontier(Xs, Ys, maxX=True, maxY=True):
     p_frontY = [pair[1] for pair in p_front]
     return p_frontX, p_frontY
 
-def plot_UBvsRuntime():
+
+def plot_UBvsRuntime(cur_problem_name):
     
     color_list = ['b', 'g', 'r']#, 'y', 'p']
     labels_list = ['IID LDPC Matrix', 'Regular LDPC Matrix']
     for color_idx, params in enumerate(ALL_PARAMS_TO_PLOT):
-        bounds_file_name = '/Users/jkuck/research/XORModelCount/SATModelCount/pickled_boundTimes/%sf_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s.pickle' % \
-        (PROBLEM_NAME, params['f_block'],params['permute'],params['k'],params['allOnesConstraint'],params['adjustF'])
+        bounds_file_name = '/Users/jkuck/research/XORModelCount/SATModelCount/preNIPS_pickled_boundTimes/%sf_block=%s_permute=%s_k=%s_allOnesConstraint=%s_adjustF=%s.pickle' % \
+        (cur_problem_name, params['f_block'],params['permute'],params['k'],params['allOnesConstraint'],params['adjustF'])
         print 'hi'
         if LOAD_PRECOMPUTED_BOUNDS:
             print bounds_file_name
@@ -598,12 +613,20 @@ def plot_UBvsRuntime():
                 pass   
         else:     
             (parallel_bounds, parallel_runtimes) = \
-                get_all_parallel_upperBounds(params=params)
+                get_all_parallel_upperBounds(params=params, problem_name=cur_problem_name)
             f = open(bounds_file_name, 'w')
             pickle.dump((parallel_bounds, parallel_runtimes), f)
             f.close() 
 
+        #continue
 
+        ####Check how many upper bounds are not valid
+        ###bounds_less_than_Z_count = 0
+        ###for bound in parallel_bounds:
+        ###    if bound < math.log(2)*log_2_Z[cur_problem_name]:
+        ###        bounds_less_than_Z_count += 1
+        ###print 'method:', labels_list[color_idx],
+        ###print bounds_less_than_Z_count/len(parallel_bounds), 'bounds are invalid'
 
         if PLOT_ACTUAL_POINTS:
             plt.scatter(parallel_runtimes, parallel_bounds, marker='+', c=color_list[color_idx])
@@ -626,7 +649,7 @@ def plot_UBvsRuntime():
     
             #plt.xlabel('Parallel Runtime (units: runtime without parity constraints)', fontsize=14)
             #plt.ylabel('Lower Bound on ln(Set Size)', fontsize=14)
-            #plt.title('Lower Bounds on Set Size of Model %s' % PROBLEM_NAME, fontsize=20)
+            #plt.title('Lower Bounds on Set Size of Model %s' % cur_problem_name, fontsize=20)
             #plt.legend(fontsize=12)    
             #make the font bigger
             matplotlib.rcParams.update({'font.size': 30})        
@@ -682,12 +705,14 @@ def plot_UBvsRuntime():
                         textcoords='offset points', ha='right', va='bottom', color=color_list[color_idx],
                         bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
                         arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color=color_list[color_idx]))
-     
-    plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='Ground Truth ln(Set Size)') 
-    plt.xlabel('Parallel Runtime (units: runtime without parity constraints)')
-    plt.ylabel('Upper Bound on ln(Set Size)')
-    plt.title('Upper Bounds on Set Size of Model %s' % PROBLEM_NAME, fontsize=20)
-    plt.legend(fontsize=12)    
+    
+
+    #return
+    plt.axhline(y=math.log(2)*log_2_Z[cur_problem_name], color='y', label='Ground Truth ln(Set Size)') 
+    plt.xlabel('Parallel Runtime (units: runtime without parity constraints)', fontsize=16)
+    plt.ylabel('Upper Bound on ln(Set Size)', fontsize=16)
+    plt.title('Upper Bounds on Set Size of Model %s' % cur_problem_name, fontsize=20)
+    plt.legend(fontsize=15)    
     plt.show()
 
 
@@ -706,9 +731,17 @@ if __name__=="__main__":
 #    end_time = time.time()        
 #    print 'time:', end_time - start_time
 #    print 
-#    exit(0)
 
-    plot_UBvsRuntime()
+    plot_UBvsRuntime(cur_problem_name=PROBLEM_NAME)
+    exit(0)
+    problem_names =  ['tire-1', 'tire-2', 'tire-3', 'tire-4', 'c432', 'c499', 'c880', 'c1355', 'c1908', 'c2670', 'sat-grid-pbl-0010', 'sat-grid-pbl-0015', 'sat-grid-pbl-0020', 'log-1', 'log-2', 'ra', 'lang12', 'hypercube', 'hypercube1', 'hypercube2']
+    problem_names =  ['sat-grid-pbl-0010', 'sat-grid-pbl-0015', 'sat-grid-pbl-0020', 'log-1', 'log-2', 'ra', 'lang12', 'hypercube', 'hypercube1', 'hypercube2']
+    problem_names =  ['lang12']
+    for problem_name in problem_names:
+        print problem_name
+        plot_UBvsRuntime(cur_problem_name=problem_name)
+        print 'finished:', problem_name
+
     exit(0)
 #
 #    n = 1000

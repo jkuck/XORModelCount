@@ -8,6 +8,13 @@ import os
 import math
 import numpy as np
 import copy
+import heapq
+import sklearn.feature_selection
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 MACHINE = 'local'#'atlas' #'atlas' or 'local'
 
@@ -157,9 +164,6 @@ class SAT:
         Make a new SAT problem that contains the satistfying solutions to the original SAT
         problem that fall within some smaller hypercube (fewer dimensions than original)
 
-
-        Note that the new SAT problem variable numbers will not be consecutive, maybe should fix
-
         Inputs:
         - restricting_hypercube: (dictionary) specification of the hypercube.  Each entry 
             specifies a dimension to cut in half:
@@ -214,8 +218,13 @@ class SAT:
             if clause_satisfied:
                 continue
             elif len(new_clause) == 1: #only contains 0 signifying end of clause, no variables, so empty clause
-                print 'SAT problem unsatisfiable in construct_smaller_SAT_problem'
-                exit(-1)
+                #print 'SAT problem unsatisfiable in construct_smaller_SAT_problem'
+                #print cur_clause
+                #for literal in cur_clause.split():
+                #    var = np.abs(int(literal))
+                #    print var, '=', restricting_hypercube[var]
+                #exit(-1)
+                new_SAT_problem.fail_apriori = True
             else:
                 adjusted_clauses.append(' '.join(str(var) for var in new_clause))
 
@@ -319,7 +328,7 @@ class SAT:
 
             print "number of parity constraints added:", len(self.hash_functions)
 
-    def add_parity_constraints_proportional_to_marginals(self, m, f, marginals):
+    def add_parity_constraints_proportional_to_marginals(self, m, f, marginals, variable_probs=np.array([None])):
         """ 
         Add m parity constraints, with average density of f, including each
         variable proportional to the uncertainty that it will be in a satisfying
@@ -330,9 +339,10 @@ class SAT:
         - f: (float) density of variables in parity constraints
         - marginals: (list of floats) approximate marginals for each variable,
             i.e. the probability that the variable is 1 in a satisfying solution
-
+        - variable_probs: (np.array) with default of None, calculate from marginals.
+            if supplied, ignore marginals and use specified probabilities for including
+            each variable as specified explicitly
         """
-        assert(len(marginals) == self.n)
         def get_variable_probs(marginals, f, n):
             unnormalized_probs = []
             for marginal in marginals:
@@ -358,8 +368,11 @@ class SAT:
             print 'sum_normalized_probs = ', sum(normalized_probs), 'max(normalized_probs)', max(normalized_probs)
             return normalized_probs            
 
-        variable_probs = get_variable_probs(marginals=marginals, f=f, n=self.n)
-
+        if variable_probs.any() == None:
+            assert(len(marginals) == self.n)
+            variable_probs = get_variable_probs(marginals=marginals, f=f, n=self.n)
+        else:
+            assert(abs(sum(variable_probs)-1.0) < .00001)
         self.hash_functions = []
         self.new_variables = 0
         self.fail_apriori = False
@@ -381,6 +394,10 @@ class SAT:
                     continue
                 else:
                     self.fail_apriori = True
+                    print 'self.fail_apriori = True'
+                    for prob in variable_probs:
+                        print prob
+                    exit(0)
                     return
             if random.randint(0, 1) == 0:
                 new_function[0] = -new_function[0]
@@ -802,6 +819,30 @@ class SAT:
                 print("Maximum xor length is %d. Added %d new variables" % (self.max_xor, self.new_variables))
 
 
+    def add_halfspace_constraints(self, m, dimensions_to_cut):
+        """ Add m constraints that cut space in half
+        Inputs:
+        - m: (int) number of cuts
+        - dimensions_to_cut: (list of ints) each element is a 1 indexed dimension to cut
+        """
+        assert(len(dimensions_to_cut) == m)
+        self.hash_functions = []
+        self.new_variables = 0
+        self.fail_apriori = False
+
+        cur_index = self.n + 1
+
+        #print "n = ", self.n
+        #print "clauseCount = ", self.clauseCount
+        for dimension in dimensions_to_cut:
+            new_function = [dimension]
+            if random.randint(0, 1) == 0:
+                new_function[0] = -new_function[0]
+            self.hash_functions.append(new_function)
+        if self.verbose:
+            print("Generated %d parity constraints" % m)
+
+
     def solve(self, max_time=-1, return_satisfying_solution=False):
         #print 'solve called'
         """ Attempt to solve the problem, returns True/False if the problem is satisfiable/unsatisfiable,
@@ -841,7 +882,11 @@ class SAT:
             if SAT_SOLVER == 'ORIGINAL':
                 solver = Command(['./cryptominisat', '--verbosity=0', '--gaussuntil=400', '--threads=1', filename])
             elif SAT_SOLVER == 'CRYPTOMINISAT5':
-                solver = Command(['%s/cryptominisat5' % CRYPTOMINISAT5_DIRECTORY, '--verb', '0', filename])
+                RECONFIG = False
+                if RECONFIG:
+                    solver = Command(['%s/cryptominisat5' % CRYPTOMINISAT5_DIRECTORY, '--verb', '0', '--reconfat', '0', '--reconf', '7', filename])
+                else:                    
+                    solver = Command(['%s/cryptominisat5' % CRYPTOMINISAT5_DIRECTORY, '--verb', '0', filename])
         else:
             solver = Command(['%s/XORModelCount/SATModelCount/cryptominisat'%INSTALL_DIRECTORY, '--verbosity=0', '--gaussuntil=400', '--threads=1', filename])
         result = solver.run(timeout=max_time)
@@ -898,7 +943,7 @@ class SAT:
         print(result)
         return None
 
-def approximate_marginals_func(problem_name, repeats, f, m, verbose=True):
+def approximate_marginals_func(problem_name, repeats, f, m, verbose=True, REGULAR=False, PERMUTE=True):
     sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)    
     approximate_marginals = np.zeros(sat.n)
     total_satisfied_sol_found = 0
@@ -908,8 +953,6 @@ def approximate_marginals_func(problem_name, repeats, f, m, verbose=True):
     for i in range(repeats):
         sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
 
-        REGULAR = False
-
         if REGULAR:
             k = np.floor(sat.n/m)
             k_density = k/sat.n
@@ -918,7 +961,7 @@ def approximate_marginals_func(problem_name, repeats, f, m, verbose=True):
 
             f_prime = (f*sat.n - k)/(sat.n - 2*k)
             print 'f_prime:', f_prime
-            sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1-f_prime, permute=True, k=k, ADD_CONSTRAINT_ALL_ONES=False)
+            sat.add_regular_constraints_constantF_permuted(m=m, f=f_prime, f_block=1-f_prime, permute=PERMUTE, k=k, ADD_CONSTRAINT_ALL_ONES=False)
       
         else:
             sat.add_parity_constraints(m=m, f=f)
@@ -1063,18 +1106,313 @@ def get_restricting_hypercube(approximate_marginals):
     '''
     restricting_hypercube = {}
     for var_idx, marginal in enumerate(approximate_marginals):
-        if marginal > .9:
+        if marginal == 1.0:
             restricting_hypercube[var_idx + 1] = 1
-        elif marginal < 0.1:
+        elif marginal == 0.0:
             restricting_hypercube[var_idx + 1] = 0
     return restricting_hypercube
 
-if __name__ == '__main__':
-    #m = 20#33
-    #f = 0.03#0.05
+def test_bound_c880(problem_name='c880.isc', repeats=100, f=1.0001/417, m=60):
+    sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)    
+    approximate_marginals, approximate_marginals_sequential_runtime,\
+        approximate_marginals_parallel_runtime = approximate_marginals_func(problem_name=problem_name, repeats=100, f=1.0001/417, m=60, REGULAR=True, PERMUTE=False)
+    
 
-    m = 50
-    f = .003
+    def get_restricting_hypercube_c880(approximate_marginals):  
+        '''
+    
+        Inputs:
+        - approximate_marginals: (list of floats) approximate marginals
+    
+        Outputs:
+        - restricting_hypercube: (dictionary) specification of the hypercube.  Each entry 
+            specifies a dimension to cut in half:
+                -key: (int) 1 indexed dimension
+                -value: (0 or 1) value of dimension in the hypercube
+    
+        '''
+        restricting_hypercube = {}
+        for var_idx, marginal in enumerate(approximate_marginals):
+            if var_idx < 60:
+                continue
+            elif marginal > .5:
+                restricting_hypercube[var_idx + 1] = 1
+            else:
+                restricting_hypercube[var_idx + 1] = 0
+        return restricting_hypercube
+    
+    
+    restricting_hypercube = get_restricting_hypercube_c880(approximate_marginals)
+
+    print 'len(restricting_hypercube):', len(restricting_hypercube)
+    #print 'restricting_hypercube1:', restricting_hypercube
+    #exit(0)
+
+    inside_hypercube_times = []
+    outside_hypercube_times = []
+
+    inside_hypercube_SAT_times = []
+    outside_hypercube_SAT_times = []
+
+    total_satisfied_sol_found_hypercube = 0
+    total_satisfied_sol_found_outside_hypercube = 0
+    print 'iter:',
+    for i in range(REPEATS):
+        print i,
+        #print '#'*80
+        #print 'iter:', i
+        sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
+
+        hypercube_SAT_problem, outside_hypercube_SAT_problem, restricting_hypercube = sat.construct_smaller_SAT_problem(restricting_hypercube)
+        hypercube_SAT_problem.add_regular_constraints_constantF_permuted(m=60, f=0.0, f_block=1, permute=False, k=1, ADD_CONSTRAINT_ALL_ONES=False, change_var_names=False)
+
+        (outcome, empirical_density, satisfying_solution) = hypercube_SAT_problem.solve(3600, return_satisfying_solution=True)
+        elapsed_time = outcome[1]
+        inside_hypercube_times.append(elapsed_time)
+
+        if outcome is True:
+            solution = "true"
+        elif outcome is False:
+            solution = "false"
+        else:
+            solution = "timeout"
+    
+        if outcome[0] == True:
+            total_satisfied_sol_found_hypercube += 1
+            inside_hypercube_SAT_times.append(elapsed_time)
+
+        #print("f = %.3f, time=%.2f, solution=%s" % (f, elapsed_time, outcome))
+        #print("problem_name: %s, solution=%s" % (problem_name, outcome))
+
+        SOLVE_OUTSIDE_HYPERCUBE = True
+        if SOLVE_OUTSIDE_HYPERCUBE:
+            outside_hypercube_SAT_problem.add_parity_constraints(m=20, f=.05)
+
+            (outcome, empirical_density, satisfying_solution) = outside_hypercube_SAT_problem.solve(3600, return_satisfying_solution=True)
+            elapsed_time = outcome[1]
+            outside_hypercube_times.append(elapsed_time)
+
+            if outcome is True:
+                solution = "true"
+            elif outcome is False:
+                solution = "false"
+            else:
+                solution = "timeout"
+        
+            if outcome[0] == True:
+                total_satisfied_sol_found_outside_hypercube += 1
+                outside_hypercube_SAT_times.append(elapsed_time)
+
+            #print("f = %.3f, time=%.2f, solution=%s" % (f, elapsed_time, outcome))
+            #print("problem_name: %s, solution=%s" % (problem_name, outcome))        
+
+    print '^'*80
+    print 'new problem, in out hypercube info:'
+    print "mean_time_hypercube =", sum(inside_hypercube_times)/REPEATS
+    print 'max_time_hypercube =', max(inside_hypercube_times)
+    print 'max_time_SAT_hypercube =', max(inside_hypercube_SAT_times)
+
+    print "mean_time_outside_hypercube =", sum(outside_hypercube_times)/REPEATS
+
+    print "total_satisfied_sol_found_hypercube =", total_satisfied_sol_found_hypercube
+    print "total_satisfied_sol_found_outside_hypercube =", total_satisfied_sol_found_outside_hypercube
+
+
+def test_halfspace_constraints(dimensions_to_cut, problem_name='c880.isc', m=60, f=.05, REPEATS=100, USE_PARITY_CONSTRAINTS=True):
+    sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)        
+    all_runtimes = []
+    SAT_runtimes = []
+    total_satisfied_sol_found = 0
+       
+    for i in range(REPEATS):
+        print i,
+        sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
+
+        
+        if USE_PARITY_CONSTRAINTS:
+            sat.add_halfspace_constraints(m=len(dimensions_to_cut), dimensions_to_cut=dimensions_to_cut)
+        else: #make a new SAT problem, with fewer variables, that encodes half space constraints
+            rand_restricting_hypercube = {}
+            for var_idx in dimensions_to_cut:
+                if random.randint(0, 1) == 0:
+                    rand_restricting_hypercube[var_idx] = 0
+                else:
+                    rand_restricting_hypercube[var_idx] = 1
+
+            new_SAT_problem, outside_hypercube_SAT_problem, restricting_hypercube = sat.construct_smaller_SAT_problem(rand_restricting_hypercube)
+            sat = new_SAT_problem
+
+        if m > len(dimensions_to_cut):
+            remaining_m = m - len(dimensions_to_cut)
+            variable_probs = [1.0 for i in range(sat.n)]
+            for var_idx in range(1,sat.n+1):
+                if var_idx in dimensions_to_cut:
+                    variable_probs[var_idx-1] = 0.0
+            variable_probs = np.array(variable_probs)
+            variable_probs /= np.sum(variable_probs)
+            sat.add_parity_constraints_proportional_to_marginals(m=remaining_m, f=f, marginals=None, variable_probs=variable_probs)
+
+        (outcome, empirical_density, satisfying_solution) = sat.solve(3600, return_satisfying_solution=True)
+        elapsed_time = outcome[1]
+        all_runtimes.append(elapsed_time)
+        print "satisfiable:", outcome[0], 'runtime:', outcome[1]
+        if outcome[0] == True:
+            total_satisfied_sol_found += 1
+            SAT_runtimes.append(elapsed_time)
+
+    print "mean_time =", sum(all_runtimes)/REPEATS
+    #print "max_time =", max(all_runtimes)
+    #print "max_SAT_time =", max(SAT_runtimes)
+    print "total_satisfied_sol_found =", total_satisfied_sol_found
+
+
+def test_SAT_solution_correlation(dimensions_to_cut, problem_name='c880.isc', m=60, REPEATS=100, USE_CACHE=True, VERBOSE=1):
+    sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)        
+    all_runtimes = []
+    SAT_runtimes = []
+    total_satisfied_sol_found = 0
+       
+    new_satisfying_solutions = []
+
+    for i in range(REPEATS):
+        print i,
+        sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)
+
+        sat.add_halfspace_constraints(m=m, dimensions_to_cut=dimensions_to_cut)
+
+        (outcome, empirical_density, satisfying_solution) = sat.solve(3600, return_satisfying_solution=True)
+
+        if satisfying_solution:
+            new_satisfying_solutions.append(np.array(satisfying_solution))
+
+        elapsed_time = outcome[1]
+        all_runtimes.append(elapsed_time)
+        print "satisfiable:", outcome[0], 'runtime:', outcome[1]
+        if outcome[0] == True:
+            total_satisfied_sol_found += 1
+            SAT_runtimes.append(elapsed_time)
+
+    if USE_CACHE:
+        if not os.path.isdir("./cached_samples"):
+            os.mkdir("./cached_samples")
+        cache_file_location = './cached_samples/%s_satisfyingSolutionSamples.cache' % problem_name
+        try:
+            with open(cache_file_location, 'rb') as cache_file:
+                print 'opened'
+                previously_computed_satisfying_solutions = pickle.load(cache_file)
+        except IOError:
+            print 'did not open'
+            previously_computed_satisfying_solutions = []
+        all_satisfying_solutions = new_satisfying_solutions + previously_computed_satisfying_solutions #+ used for list concatenation
+        with open(cache_file_location, 'wb') as cache_file: #would be faster to write on the end rather than rewriting everything if this matters
+            pickle.dump(all_satisfying_solutions, cache_file)
+    else:
+        all_satisfying_solutions = new_satisfying_solutions
+
+    all_satisfying_solutions=np.asarray(all_satisfying_solutions)
+
+    print "number of satisfying solutions sampled =", len(all_satisfying_solutions)
+    covariance = np.cov(all_satisfying_solutions, rowvar=False)
+    print 'hi1'
+    np.set_printoptions(precision=2)
+    if VERBOSE == 1:
+        print 'hi2'
+        marginals = np.mean(all_satisfying_solutions, axis=0)
+        max_diff_from_half = 0
+        max_cov = 0
+        for var in range(m):
+            cur_diff_from_half = abs(.5 - marginals[var])
+            if cur_diff_from_half > max_diff_from_half:
+                max_diff_from_half = cur_diff_from_half
+
+            for var2 in range(m):
+                if var2 != var:
+                    cur_cov = np.abs(covariance[var,var2])
+                    if cur_cov > max_cov:
+                        max_cov = cur_cov
+
+        for var in range(m, covariance.shape[0]):
+            cur_diff_from_half = abs(.5 - marginals[var])
+            max_first_60_cov = 0
+            for var2 in range(m):
+                cur_cov = np.abs(covariance[var,var2])
+                if cur_cov > max_first_60_cov:
+                    max_first_60_cov = cur_cov
+            if cur_diff_from_half < 3*max_diff_from_half and max_first_60_cov < 3*max_cov:
+                print 'var =', var, 'marginal:', np.mean(all_satisfying_solutions, axis=0)[var], ', top 5 covariance values with variables 1 to m:', ["{0:0.2f}".format(i) for i in sorted(np.abs(covariance[var,0:m]), reverse=True)[0:5]]                
+
+    if VERBOSE == 2:
+        print covariance
+        print 'covariance for variable 1', covariance[0,:]
+        print 'covariance for variable 2', covariance[1,:]
+        print 'covariance for variable 3', covariance[2,:]
+        print 'covariance for variable 4', covariance[3,:]
+        print 'sorted indices:', np.argsort(covariance[0,:])
+        print 'top 5:', sorted(covariance[0,:])[0:5]
+    
+        for var_idx in range(covariance.shape[0]):
+            print 'var =', var_idx, 'marginal:', np.mean(all_satisfying_solutions, axis=0)[var_idx], ', top 5 covariance values with variables 1 to m:', ["{0:0.2f}".format(i) for i in sorted(np.abs(covariance[var_idx,0:m]), reverse=True)[0:5]]
+            print ["{0:0.2f}".format(i) for i in covariance[var_idx,0:m]]
+    
+        print "mean_time =", sum(all_runtimes)/REPEATS
+        #print "max_time =", max(all_runtimes)
+        #print "max_SAT_time =", max(SAT_runtimes)
+        print "total_satisfied_sol_found =", total_satisfied_sol_found
+    
+        print 'var =', m-1, 'marginal:', np.mean(all_satisfying_solutions, axis=0)[m-1], ', top 5 covariance values with variables 1 to m:', ["{0:0.2f}".format(i) for i in covariance[m-1,0:m]]
+
+    if VERBOSE == 3:
+        all_pairwise_mutual_info = np.zeros(covariance.shape)
+        for var in range(covariance.shape[0]):
+            print 'var=', var
+            #assert(len(all_satisfying_solutions[:, var]) == REPEATS)
+            mutual_info = sklearn.feature_selection.mutual_info_classif(all_satisfying_solutions, all_satisfying_solutions[:, var], discrete_features=True)
+            for i in range(covariance.shape[0]):
+                if i < var:
+                    assert(abs(all_pairwise_mutual_info[i, var] - mutual_info[i]) < .0001), (all_pairwise_mutual_info[i, var], mutual_info[i], var, i)
+                    print '(all_pairwise_mutual_info[i, var] = ', all_pairwise_mutual_info[i, var]
+                    print 'mutual_info[i] = ', mutual_info[i]
+                all_pairwise_mutual_info[var, i] = mutual_info[i]
+                
+                
+
+                #print all_pairwise_mutual_info[:8, :8]
+    
+        if USE_CACHE:
+            mutual_info_matrix_file = './cached_samples/%s_mutualInformationMatrix.pickle' % problem_name
+            #try:
+            #    with open(mutual_info_matrix_file, 'rb') as cache_file:
+            #        print 'opened'
+            #        all_pairwise_mutual_info = pickle.load(cache_file)
+            #except IOError:
+            #    print 'did not open'
+            with open(mutual_info_matrix_file, 'wb') as cache_file: #would be faster to write on the end rather than rewriting everything if this matters
+                pickle.dump(all_pairwise_mutual_info, cache_file)    
+
+        for var_idx in range(covariance.shape[0]):
+            print 'var =', var_idx, 'marginal:', np.mean(all_satisfying_solutions, axis=0)[var_idx], ', top 5 mutual_info values with variables 1 to m:', ["{0:0.2f}".format(i) for i in sorted(np.abs(all_pairwise_mutual_info[var_idx,0:m]), reverse=True)[0:5]]
+
+
+if __name__ == '__main__':
+####    dimensions_to_cut = [i for i in range(1,37)] 
+####    test_SAT_solution_correlation(dimensions_to_cut, problem_name='c432.isc', m=36, REPEATS=0, USE_CACHE=True, VERBOSE=1)
+####    exit(0)
+    dimensions_to_cut = [i for i in range(1,50)] #+ [343]
+    test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='c2670.isc', m=51, f=.5, REPEATS=100, USE_PARITY_CONSTRAINTS=True)
+####
+####    #dimensions_to_cut = [i for i in range(1,236)]
+####    #test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='c2670.isc', m=len(dimensions_to_cut), REPEATS=100)
+####
+####    dimensions_to_cut = [i for i in range(1,5)]
+####    test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='log-2.cnf', m=len(dimensions_to_cut), REPEATS=100)
+####
+    exit(0)
+
+    m = 40#33
+    f = 0.05#0.05
+
+    #m = 60
+    #f = 1.001/417
     f_block = 1
     REPEATS = 100
     all_runtimes = []
@@ -1086,6 +1424,8 @@ if __name__ == '__main__':
     PROBLEM_NAMES = ['c880.isc']
     USE_MARGINALS = False
 
+    #test_bound_c880()
+    #print approximate_marginals_func(problem_name=PROBLEM_NAMES[0], repeats=100, f=1.0001/417, m=60, REGULAR=True, PERMUTE=False)
     #solve_smaller_sat(problem_name=PROBLEM_NAMES[0], repeats=REPEATS, f=f, m=m)
     #exit(0)
     for problem_name in PROBLEM_NAMES:
@@ -1100,6 +1440,7 @@ if __name__ == '__main__':
             print 'f=', f, 'sat.n=', sat.n, 'len(restricting_hypercube)=', len(restricting_hypercube)
         #exit(0)
         for i in range(REPEATS):
+            print i,
             #print '#'*80
             #print 'iter:', i
             sat = SAT("../../winter_2018/low_density_parity_checks/SAT_problems_cnf/%s" % problem_name, verbose=False, duplicate=0)

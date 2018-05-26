@@ -12,6 +12,8 @@ from adjustText import adjust_text
 import os
 from file_helpers import read_files_moreInfo_newFormat
 
+#from fireworks_speed_test_heatmap import m_ranges, f_ranges
+
 #random_file = 'SATModelCount/result/speed20.txt'
 #regular_file = 'SATModelCount/result/rspeed20.txt'
 #random_file = 'result/speed20.txt'
@@ -53,7 +55,7 @@ regular_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_p
 permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUTcomplete/%s/f_block=1minusF_permute=True_k=None_allOnesConstraint=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
 REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
-PROBLEM_NAME = 'c880'
+PROBLEM_NAME = 'sat-grid-pbl-0020'
 #original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 #permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 original_filebase = 'slurm_postUAI1/test_permute/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
@@ -62,8 +64,27 @@ notPermutedBlockDiag_filebase = 'test_permute1/%s/f_block=1minusF_permute=False_
 permutedBlockDiag_changeVars_filebase = 'test_permute1/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 permutedBlockDiag_fis1_filebase = 'slurm_postUAI1/test_permute/%s/f_block=1_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
-original_filebase = permutedBlockDiag_changeVars_filebase
-permutedBlockDiag_filebase = notPermutedBlockDiag_filebase
+REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
+PROBLEM_NAME = 'c432'
+#original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+original_filebase = 'slurm_postUAI1/specific_MF_vals/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_filebase = 'slurm_postUAI1/specific_MF_vals/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+notPermutedBlockDiag_filebase = 'slurm_postUAI1/specific_MF_vals/%s/f_block=1minusF_permute=False_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_changeVars_filebase = 'slurm_postUAI1/specific_MF_vals/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+
+
+REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
+PROBLEM_NAME = 'log-1'
+#original_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#permutedBlockDiag_filebase = 'heatmap_result_fireworksTIMEOUT_3_9_secondCopy/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+original_filebase = 'postNIPS/use_MIS/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_changeVars=False_useMIS=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+permutedBlockDiag_filebase = 'postNIPS/use_MIS/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_useMIS=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+original_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+
+#original_filebase = notPermutedBlockDiag_filebase
+#original_filebase = permutedBlockDiag_changeVars_filebase
+#permutedBlockDiag_filebase = notPermutedBlockDiag_filebase
 #permutedBlockDiag_filebase = permutedBlockDiag_changeVars_filebase
 
 USE_MULTIPLE_FILES = True #aggregate results from multiple files if true
@@ -455,8 +476,13 @@ def print_summary_table(problem_names, runtime_cutoffs, print_ratio=False):
         print "Model Name & \#Variables& \#Clauses & ln(Z) &  Ours &  Baseline &  Ours &  Baseline &  Ours &  Baseline &  Ours &  Baseline \\\\\midrule"
 
     for problem_name in problem_names:
-        baseline_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
-        our_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
+        original_filebase = 'slurm_postUAI1/reproduce_results_finished/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
+        permutedBlockDiag_filebase = 'slurm_postUAI1/reproduce_results_finished/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
+
+        baseline_filebase = original_filebase
+        our_filebase = permutedBlockDiag_filebase
+        #baseline_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
+        #our_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (problem_name, REPEATS)
 
         baseline_bounds_by_runtime = get_best_bounds_by_runtime(baseline_filebase, runtime_cutoffs)
         our_bounds_by_runtime = get_best_bounds_by_runtime(our_filebase, runtime_cutoffs)
@@ -492,9 +518,10 @@ def print_summary_table(problem_names, runtime_cutoffs, print_ratio=False):
 #        print "%s \t \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t %f \t" % (problem_name, baseline_bounds_by_runtime[1], our_bounds_by_runtime[1],\
 #            baseline_bounds_by_runtime[2], our_bounds_by_runtime[2], baseline_bounds_by_runtime[10], our_bounds_by_runtime[10], baseline_bounds_by_runtime[100], our_bounds_by_runtime[100], \
 #            baseline_bounds_by_runtime[1000], our_bounds_by_runtime[1000])
+
 if __name__=="__main__":
 
-    runtime_cutoffs = [1, 10, 100, 1000]    
+    runtime_cutoffs = [2, 10, 100]    
     problem_names =  ['tire-1', 'tire-2', 'tire-3', 'tire-4', 'c432', 'c499', 'c880', 'c1355', 'c1908', 'c2670', 'sat-grid-pbl-0010', 'sat-grid-pbl-0015', 'sat-grid-pbl-0020', 'log-1', 'log-2', 'ra', 'lang12', 'hypercube', 'hypercube1', 'hypercube2']
     #print_summary_table(problem_names=problem_names, runtime_cutoffs=runtime_cutoffs, print_ratio=False)
     #exit(0)
@@ -517,14 +544,19 @@ if __name__=="__main__":
     orig_sat_over_trials_parallel = []
     orig_satUsed_over_totalSat_parallel = []
     orig_sat_over_trials_sequential = []
+
+    original_MFvals = []
     for (m_idx, m_val) in enumerate(sorted_m_vals):
         for (f_idx, f_val) in enumerate(sorted_f_vals):
             print "m =", m_val, "f =", f_val        
             assert(float(int(int(num_SAT_orig[f_idx, m_idx]))) == num_SAT_orig[f_idx, m_idx])
             (parallel_bounds, parallel_runtimes, sat_over_trials_parallel, satUsed_over_totalSat_parallel, \
-                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT_orig[f_idx, m_idx]), T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val], ALL_run_times=all_runtimes_dict_orig[f_val, m_val])
+                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT_orig[f_idx, m_idx]),\
+                 T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val], \
+                 ALL_run_times=all_runtimes_dict_orig[f_val, m_val], min_confidence = 1 - .05/(1))
             all_original_parallel_bounds.extend(parallel_bounds)
             all_original_parallel_runtimes.extend(parallel_runtimes)
+            original_MFvals.extend([(m_val, f_val) for i in range(len(parallel_bounds))])
             print 'len(parallel_runtimes) =', len(parallel_runtimes)
             all_original_sequential_bounds.extend(sequential_bound)
             all_original_sequential_runtimes.extend(sequential_runtime)
@@ -592,14 +624,18 @@ if __name__=="__main__":
     permutedBlockDiag_satUsed_over_totalSat_parallel = []
     permutedBlockDiag_sat_over_trials_sequential = []
 
+    permutedBlockDiag_MFvals = []
     for (m_idx, m_val) in enumerate(sorted_m_vals):
         for (f_idx, f_val) in enumerate(sorted_f_vals):
             print "m =", m_val, "f =", f_val
             assert(float(int(int(num_SAT_permutedBlockDiag[f_idx, m_idx]))) == num_SAT_permutedBlockDiag[f_idx, m_idx])
             (parallel_bounds, parallel_runtimes, sat_over_trials_parallel, satUsed_over_totalSat_parallel, \
-                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT_permutedBlockDiag[f_idx, m_idx]), T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val], ALL_run_times=all_runtimes_dict_permutedBlockDiag[f_val, m_val])
+                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT_permutedBlockDiag[f_idx, m_idx]), \
+                T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val], \
+                ALL_run_times=all_runtimes_dict_permutedBlockDiag[f_val, m_val], min_confidence = 1 - .05/(1))
             all_permutedBlockDiag_parallel_bounds.extend(parallel_bounds)
             all_permutedBlockDiag_parallel_runtimes.extend(parallel_runtimes)
+            permutedBlockDiag_MFvals.extend([(m_val, f_val) for i in range(len(parallel_bounds))])
             all_permutedBlockDiag_sequential_bounds.extend(sequential_bound)
             all_permutedBlockDiag_sequential_runtimes.extend(sequential_runtime)
             all_permutedBlockDiag_num_trials[(f_val, m_val)] = num_trials_dict[f_val, m_val]
@@ -622,12 +658,21 @@ if __name__=="__main__":
     PLOT_PARETO_FRONTIER = True
     if PLOT_PARETO_FRONTIER:
         #Plot pareto frontier of parallel bounds
-        (pf_runtime_orig, pf_bound_orig) = pareto_frontier(Xs=all_original_parallel_runtimes, Ys=all_original_parallel_bounds, maxX=False, maxY=True)
+        (pf_runtime_orig, pf_bound_orig, orig_pareto_mf_vals) = pareto_frontier(Xs=all_original_parallel_runtimes, Ys=all_original_parallel_bounds, maxX=False, maxY=True, ExtraInfo=original_MFvals)
         plt.plot(pf_runtime_orig, pf_bound_orig, '*--', c='b', label='IID LDPC Matrix')        
 
 
-        (pf_runtime_regular, pf_bound_regular) = pareto_frontier(Xs=all_permutedBlockDiag_parallel_runtimes, Ys=all_permutedBlockDiag_parallel_bounds, maxX=False, maxY=True)
+        (pf_runtime_regular, pf_bound_regular, regular_pareto_mf_vals) = pareto_frontier(Xs=all_permutedBlockDiag_parallel_runtimes, Ys=all_permutedBlockDiag_parallel_bounds, maxX=False, maxY=True, ExtraInfo=permutedBlockDiag_MFvals)
         plt.plot(pf_runtime_regular, pf_bound_regular, '*--', c='g', label='Regular LDPC Matrix')
+
+        print 'orig_pareto_mf_vals'
+        print orig_pareto_mf_vals
+
+        print 'regular_pareto_mf_vals'
+        print regular_pareto_mf_vals
+
+        print 'all pareto mf vals:'
+        print set(orig_pareto_mf_vals + regular_pareto_mf_vals)
 
         #fig = plt.figure()
         #ax = plt.subplot(111)
@@ -636,12 +681,12 @@ if __name__=="__main__":
         #ax.plot(pf_runtime_regular, pf_bound_regular, '--r2', label='Regular LDPC Matrix', markersize=15)
 
         plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='Ground Truth ln(Set Size)') 
-        plt.xlabel('Parallel Runtime (units: runtime without parity constraints)', fontsize=14)
-        plt.ylabel('Lower Bound on ln(Set Size)', fontsize=14)
+        plt.xlabel('Parallel Runtime (units: runtime without parity constraints)', fontsize=16)
+        plt.ylabel('Lower Bound on ln(Set Size)', fontsize=16)
         plt.title('Lower Bounds on Set Size of Model %s' % PROBLEM_NAME, fontsize=20)
-        plt.legend(fontsize=12)    
+        plt.legend(fontsize=15)    
         #make the font bigger
-        matplotlib.rcParams.update({'font.size': 10})        
+        matplotlib.rcParams.update({'font.size': 14})        
 
         plt.grid(True)
         # Shrink current axis's height by 10% on the bottom
@@ -654,6 +699,14 @@ if __name__=="__main__":
 
 
         #Plot pareto frontier of sequential bounds
+        if PLOT_ACTUAL_POINTS:
+            plt.scatter(all_original_sequential_runtimes, all_original_sequential_bounds, marker='+', c='b')
+            #plt.scatter(all_blockDiag_sequential_runtimes, all_blockDiag_sequential_bounds, marker='+', c='r')
+            plt.scatter(all_permutedBlockDiag_sequential_runtimes, all_permutedBlockDiag_sequential_bounds, marker='+', c='g')
+            plt.xlabel('sequential runtime (units: mean unperturbed runtime on machine averaged over 10 trials)')
+            plt.ylabel('Lower Bound on ln(Set Size)')
+            plt.legend()        
+
         (pf_runtime_orig_sequential, pf_bound_orig_sequential, MF_pairs_orig) = pareto_frontier(Xs=all_original_sequential_runtimes, Ys=all_original_sequential_bounds, maxX=False, maxY=True, ExtraInfo=sequential_orig_M_F)
         plt.plot(pf_runtime_orig_sequential, pf_bound_orig_sequential, '*--', c='b', label='IID LDPC Matrix')        
 
@@ -665,9 +718,9 @@ if __name__=="__main__":
         plt.xlabel('Sequential Runtime (units: runtime without parity constraints)', fontsize=14)
         plt.ylabel('Lower Bound on ln(Set Size)', fontsize=14)
         plt.title('Lower Bounds on Set Size of Model %s' % PROBLEM_NAME, fontsize=20)
-        plt.legend(fontsize=12)    
+        plt.legend(fontsize=14)    
         #make the font bigger
-        matplotlib.rcParams.update({'font.size': 10})        
+        matplotlib.rcParams.update({'font.size': 14})        
 
         plt.grid(True)
 
@@ -750,6 +803,13 @@ if __name__=="__main__":
 
         plt.show()
 
+        
+
+        print 'number of original sequential bounds', len(all_original_sequential_bounds)
+        print 'number of regular sequential bounds', len(all_permutedBlockDiag_sequential_bounds)
+
+        print 'number of original parallel bounds', len(all_original_parallel_bounds)
+        print 'number of regular parallel bounds', len(all_permutedBlockDiag_parallel_bounds)
 
         sleep(12)
         #num_SAT_orig
