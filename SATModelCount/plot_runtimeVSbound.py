@@ -63,6 +63,10 @@ permutedBlockDiag_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1minusF_p
 notPermutedBlockDiag_filebase = 'test_permute1/%s/f_block=1minusF_permute=False_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 permutedBlockDiag_changeVars_filebase = 'test_permute1/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 permutedBlockDiag_fis1_filebase = 'slurm_postUAI1/test_permute/%s/f_block=1_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+#original_filebase = notPermutedBlockDiag_filebase
+#original_filebase = permutedBlockDiag_changeVars_filebase
+#permutedBlockDiag_filebase = notPermutedBlockDiag_filebase
+#permutedBlockDiag_filebase = permutedBlockDiag_changeVars_filebase
 
 REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
 PROBLEM_NAME = 'c432'
@@ -82,18 +86,22 @@ original_filebase = 'postNIPS/use_MIS/%s/f_block=1_permute=False_k=0_allOnesCons
 permutedBlockDiag_filebase = 'postNIPS/use_MIS/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_useMIS=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 original_filebase = 'slurm_postUAI/max_timeout1000/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
 
-#original_filebase = notPermutedBlockDiag_filebase
-#original_filebase = permutedBlockDiag_changeVars_filebase
-#permutedBlockDiag_filebase = notPermutedBlockDiag_filebase
-#permutedBlockDiag_filebase = permutedBlockDiag_changeVars_filebase
 
-USE_MULTIPLE_FILES = True #aggregate results from multiple files if true
+REPEATS = 10 #repetitions of each (m, f) run during an experiment on a single machine
+PROBLEM_NAME = 'c1908'
+iid_filebase = 'slurm_postUAI1/reproduce_results_finished/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+regular_filebase = 'slurm_postUAI1/reproduce_results_finished/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+iid_MIS_filebase = 'postNIPS/use_MIS_reproduce/%s/f_block=1_permute=False_k=0_allOnesConstraint=False_adjustF=True_changeVars=False_useMIS=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+regular_MIS_filebase = 'postNIPS/use_MIS_reproduce/%s/f_block=1minusF_permute=True_k=maxConstant_allOnesConstraint=False_adjustF=True_changeVars=False_useMIS=True_REPEATS=%d_expIdx=' % (PROBLEM_NAME, REPEATS)
+
 FILE_COUNT = 10 #number of experiments run on possible different machines
 PLOT_BLOCK_DIAG = False
 PLOT_BLOCK_DIAG_PERMUTED = True
 PLOT_PERMUTATION_K1 = False
 
 PLOT_ACTUAL_POINTS = False 
+PLOT_PARETO_FRONTIER = True
+
 ANNOTATE_PLOTS = False
 
 log_2_Z = { 'c432': 36.1,
@@ -519,166 +527,86 @@ def print_summary_table(problem_names, runtime_cutoffs, print_ratio=False):
 #            baseline_bounds_by_runtime[2], our_bounds_by_runtime[2], baseline_bounds_by_runtime[10], our_bounds_by_runtime[10], baseline_bounds_by_runtime[100], our_bounds_by_runtime[100], \
 #            baseline_bounds_by_runtime[1000], our_bounds_by_runtime[1000])
 
-if __name__=="__main__":
+def get_data_for_plots(filebase):
+    (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict, \
+        f_prime_dict, k_dict) = read_files_moreInfo_newFormat(filename_base=filebase, \
+        repeats=REPEATS, file_count=FILE_COUNT)
 
+    data = {
+        'all_parallel_bounds' : [],
+        'all_parallel_runtimes' : [],
+        'all_sequential_bounds' : [],
+        'all_sequential_runtimes' : [],
+        'all_num_trials' : {}, #number of trials for every m, f combination
+        'parallel_M_F' : [],
+        'sequential_M_F' : [],
+        'sat_over_trials_parallel' : [],
+        'satUsed_over_totalSat_parallel' : [],
+        'sat_over_trials_sequential' : [],
+        }
+
+    for (m_idx, m_val) in enumerate(sorted_m_vals):
+        for (f_idx, f_val) in enumerate(sorted_f_vals):
+            print "m =", m_val, "f =", f_val
+            assert(float(int(int(num_SAT[f_idx, m_idx]))) == num_SAT[f_idx, m_idx])
+            (parallel_bounds, parallel_runtimes, sat_over_trials_parallel, satUsed_over_totalSat_parallel, \
+                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT[f_idx, m_idx]), \
+                T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val], \
+                ALL_run_times=all_runtimes_dict[f_val, m_val], min_confidence = 1 - .05/(1))
+            data['all_parallel_bounds'].extend(parallel_bounds)
+            data['all_parallel_runtimes'].extend(parallel_runtimes)
+            data['all_sequential_bounds'].extend(sequential_bound)
+            data['all_sequential_runtimes'].extend(sequential_runtime)
+            data['all_num_trials'][(f_val, m_val)] = num_trials_dict[f_val, m_val]
+            data['parallel_M_F'].extend([(m_val, f_val) for i in range(len(parallel_bounds))])
+            data['sequential_M_F'].extend([(m_val, f_val) for i in range(len(sequential_bound))])
+            data['sat_over_trials_parallel'].extend(sat_over_trials_parallel)
+            data['satUsed_over_totalSat_parallel'].extend(satUsed_over_totalSat_parallel)
+            data['sat_over_trials_sequential'].extend(sat_over_trials_sequential)
+
+    assert(len(data['all_sequential_runtimes']) == len(data['sequential_M_F'])), (len(data['all_sequential_runtimes']), len(data['sequential_M_F']))
+    return data
+
+if __name__=="__main__":
     runtime_cutoffs = [2, 10, 100]    
     problem_names =  ['tire-1', 'tire-2', 'tire-3', 'tire-4', 'c432', 'c499', 'c880', 'c1355', 'c1908', 'c2670', 'sat-grid-pbl-0010', 'sat-grid-pbl-0015', 'sat-grid-pbl-0020', 'log-1', 'log-2', 'ra', 'lang12', 'hypercube', 'hypercube1', 'hypercube2']
     #print_summary_table(problem_names=problem_names, runtime_cutoffs=runtime_cutoffs, print_ratio=False)
     #exit(0)
 
-
-    ##### original randomness #####
-    if USE_MULTIPLE_FILES: 
-        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT_orig, num_trials_dict, all_runtimes_dict_orig, f_prime_dict, k_dict) = read_files_moreInfo_newFormat(filename_base=original_filebase, repeats=REPEATS, file_count=FILE_COUNT)
-    else:
-        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT_orig, num_trials_dict) = read_file(random_file, repeats=REPEATS)
-
-    print '-'*30, 'original randomness', '-'*30
-    all_original_parallel_bounds = []
-    all_original_parallel_runtimes = []
-    all_original_sequential_bounds = []
-    all_original_sequential_runtimes = []
-    all_original_num_trials = {} #number of trials for every m, f combination
-    parallel_orig_M_F = []
-    sequential_orig_M_F = []
-    orig_sat_over_trials_parallel = []
-    orig_satUsed_over_totalSat_parallel = []
-    orig_sat_over_trials_sequential = []
-
-    original_MFvals = []
-    for (m_idx, m_val) in enumerate(sorted_m_vals):
-        for (f_idx, f_val) in enumerate(sorted_f_vals):
-            print "m =", m_val, "f =", f_val        
-            assert(float(int(int(num_SAT_orig[f_idx, m_idx]))) == num_SAT_orig[f_idx, m_idx])
-            (parallel_bounds, parallel_runtimes, sat_over_trials_parallel, satUsed_over_totalSat_parallel, \
-                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT_orig[f_idx, m_idx]),\
-                 T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val], \
-                 ALL_run_times=all_runtimes_dict_orig[f_val, m_val], min_confidence = 1 - .05/(1))
-            all_original_parallel_bounds.extend(parallel_bounds)
-            all_original_parallel_runtimes.extend(parallel_runtimes)
-            original_MFvals.extend([(m_val, f_val) for i in range(len(parallel_bounds))])
-            print 'len(parallel_runtimes) =', len(parallel_runtimes)
-            all_original_sequential_bounds.extend(sequential_bound)
-            all_original_sequential_runtimes.extend(sequential_runtime)
-            all_original_num_trials[(f_val, m_val)] = num_trials_dict[f_val, m_val]
-            parallel_orig_M_F.extend([(m_val, f_val) for i in range(len(parallel_bounds))])
-            sequential_orig_M_F.extend([(m_val, f_val) for i in range(len(sequential_bound))])
-            orig_sat_over_trials_parallel.extend(sat_over_trials_parallel)
-            orig_satUsed_over_totalSat_parallel.extend(satUsed_over_totalSat_parallel)
-            orig_sat_over_trials_sequential.extend(sat_over_trials_sequential)
-
-    assert(len(all_original_sequential_runtimes) == len(sequential_orig_M_F)), (len(all_original_sequential_runtimes), len(sequential_orig_M_F))
-
-    ##### block diagonal + randomness #####
-    if USE_MULTIPLE_FILES:
-        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict, all_runtimes_dict) = read_files_moreInfo(filename_base=regular_filebase, repeats=REPEATS, file_count=FILE_COUNT)
-    else:
-        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT, num_trials_dict) = read_file(regular_file, repeats=REPEATS)
-
-    print '-'*30, 'block diag', '-'*30
-    all_blockDiag_parallel_bounds = []
-    all_blockDiag_parallel_runtimes = []
-    all_blockDiag_sequential_bounds = []
-    all_blockDiag_sequential_runtimes = []
-    all_blockDiag_num_trials = {} #number of trials for every m, f combination
-    parallel_blockDiag_M_F = []
-    sequential_blockDiag_M_F = []
-    blockDiag_sat_over_trials_parallel = []
-    blockDiag_satUsed_over_totalSat_parallel = []
-    blockDiag_sat_over_trials_sequential = []
-
-    for (m_idx, m_val) in enumerate(sorted_m_vals):
-        for (f_idx, f_val) in enumerate(sorted_f_vals):
-            print "m =", m_val, "f =", f_val        
-            assert(float(int(int(num_SAT[f_idx, m_idx]))) == num_SAT[f_idx, m_idx])
-            (parallel_bounds, parallel_runtimes, sat_over_trials_parallel, satUsed_over_totalSat_parallel, \
-                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT[f_idx, m_idx]), T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val], ALL_run_times=all_runtimes_dict[f_val, m_val])
-            all_blockDiag_parallel_bounds.extend(parallel_bounds)
-            all_blockDiag_parallel_runtimes.extend(parallel_runtimes)
-            all_blockDiag_sequential_bounds.extend(sequential_bound)
-            all_blockDiag_sequential_runtimes.extend(sequential_runtime)
-            all_blockDiag_num_trials[(f_val, m_val)] = num_trials_dict[f_val, m_val]
-            parallel_blockDiag_M_F.extend([(m_val, f_val) for i in range(len(parallel_bounds))])
-            sequential_blockDiag_M_F.extend([(m_val, f_val) for i in range(len(sequential_bound))])
-            blockDiag_sat_over_trials_parallel.extend(sat_over_trials_parallel)
-            blockDiag_satUsed_over_totalSat_parallel.extend(satUsed_over_totalSat_parallel)
-            blockDiag_sat_over_trials_sequential.extend(sat_over_trials_sequential)
+    EXPERIMENTS_TO_PLOT = [('iid', iid_filebase, 'b'), ('regular', regular_filebase, 'g'),\
+                           ('iid_MIS', iid_MIS_filebase, 'r'), ('regular_MIS', regular_MIS_filebase, 'y')]
+    all_exp_data = {}
+    for exp_name, filebase, exp_color in EXPERIMENTS_TO_PLOT:
+        cur_exp_data = get_data_for_plots(filebase)
+        all_exp_data[exp_name] = cur_exp_data
 
 
-
-    ##### permuted block diagonal + randomness #####
-    if USE_MULTIPLE_FILES:
-        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT_permutedBlockDiag, num_trials_dict, all_runtimes_dict_permutedBlockDiag, f_prime_dict, k_dict) = read_files_moreInfo_newFormat(filename_base=permutedBlockDiag_filebase, repeats=REPEATS, file_count=FILE_COUNT)
-    else:
-        (sorted_m_vals, sorted_f_vals, SAT_runtimes, UNSAT_runtimes, num_SAT_permutedBlockDiag, num_trials_dict) = read_file(permutedBlockDiag_file, repeats=REPEATS)    
-
-    print '-'*30, 'permuted block diag', '-'*30
-    all_permutedBlockDiag_parallel_bounds = []
-    all_permutedBlockDiag_parallel_runtimes = []
-    all_permutedBlockDiag_sequential_bounds = []
-    all_permutedBlockDiag_sequential_runtimes = []
-    all_permutedBlockDiag_num_trials = {} #number of trials for every m, f combination
-    parallel_permutedBlockDiag_M_F = []
-    sequential_permutedBlockDiag_M_F = []
-    permutedBlockDiag_sat_over_trials_parallel = []
-    permutedBlockDiag_satUsed_over_totalSat_parallel = []
-    permutedBlockDiag_sat_over_trials_sequential = []
-
-    permutedBlockDiag_MFvals = []
-    for (m_idx, m_val) in enumerate(sorted_m_vals):
-        for (f_idx, f_val) in enumerate(sorted_f_vals):
-            print "m =", m_val, "f =", f_val
-            assert(float(int(int(num_SAT_permutedBlockDiag[f_idx, m_idx]))) == num_SAT_permutedBlockDiag[f_idx, m_idx])
-            (parallel_bounds, parallel_runtimes, sat_over_trials_parallel, satUsed_over_totalSat_parallel, \
-                sequential_bound, sequential_runtime, sat_over_trials_sequential) = get_lower_bound(num_SAT=int(num_SAT_permutedBlockDiag[f_idx, m_idx]), \
-                T=num_trials_dict[f_val, m_val], m=m_val, SAT_run_times=SAT_runtimes[f_val, m_val], UNSAT_run_times=UNSAT_runtimes[f_val, m_val], \
-                ALL_run_times=all_runtimes_dict_permutedBlockDiag[f_val, m_val], min_confidence = 1 - .05/(1))
-            all_permutedBlockDiag_parallel_bounds.extend(parallel_bounds)
-            all_permutedBlockDiag_parallel_runtimes.extend(parallel_runtimes)
-            permutedBlockDiag_MFvals.extend([(m_val, f_val) for i in range(len(parallel_bounds))])
-            all_permutedBlockDiag_sequential_bounds.extend(sequential_bound)
-            all_permutedBlockDiag_sequential_runtimes.extend(sequential_runtime)
-            all_permutedBlockDiag_num_trials[(f_val, m_val)] = num_trials_dict[f_val, m_val]
-            parallel_permutedBlockDiag_M_F.extend([(m_val, f_val) for i in range(len(parallel_bounds))])
-            sequential_permutedBlockDiag_M_F.extend([(m_val, f_val) for i in range(len(sequential_bound))])
-            permutedBlockDiag_sat_over_trials_parallel.extend(sat_over_trials_parallel)
-            permutedBlockDiag_satUsed_over_totalSat_parallel.extend(satUsed_over_totalSat_parallel)
-            permutedBlockDiag_sat_over_trials_sequential.extend(sat_over_trials_sequential)
-
-
+    ################ PLOT PARALLEL BOUNDS ################
     if PLOT_ACTUAL_POINTS:
-        plt.scatter(all_original_parallel_runtimes, all_original_parallel_bounds, marker='+', c='b')
-        #plt.scatter(all_blockDiag_parallel_runtimes, all_blockDiag_parallel_bounds, marker='+', c='r')
-        plt.scatter(all_permutedBlockDiag_parallel_runtimes, all_permutedBlockDiag_parallel_bounds, marker='+', c='g')
-        plt.xlabel('parallel runtime (units: mean unperturbed runtime on machine averaged over 10 trials)')
+        for exp_name, filebase, exp_color in EXPERIMENTS_TO_PLOT:
+            plt.scatter(all_exp_data[exp_name]['all_parallel_runtimes'], all_exp_data[exp_name]['all_parallel_bounds'], marker='+', c=exp_color)
+        plt.xlabel('parallel runtime (units: median unperturbed runtime on machine over 100 trials)')
         plt.ylabel('Lower Bound on ln(Set Size)')
         plt.legend()
     #    plt.show()
 
-    PLOT_PARETO_FRONTIER = True
     if PLOT_PARETO_FRONTIER:
-        #Plot pareto frontier of parallel bounds
-        (pf_runtime_orig, pf_bound_orig, orig_pareto_mf_vals) = pareto_frontier(Xs=all_original_parallel_runtimes, Ys=all_original_parallel_bounds, maxX=False, maxY=True, ExtraInfo=original_MFvals)
-        plt.plot(pf_runtime_orig, pf_bound_orig, '*--', c='b', label='IID LDPC Matrix')        
+        all_pareto_vals = []
+        for exp_name, filebase, exp_color in EXPERIMENTS_TO_PLOT:
+            #print exp_name
+            #print all_exp_data[exp_name]['all_parallel_runtimes']
+            (pf_runtime, pf_bound, pareto_mf_vals) =\
+              pareto_frontier(Xs=all_exp_data[exp_name]['all_parallel_runtimes'], Ys=all_exp_data[exp_name]['all_parallel_bounds'],\
+              maxX=False, maxY=True, ExtraInfo=all_exp_data[exp_name]['parallel_M_F'])
 
+            plt.plot(pf_runtime, pf_bound, '*--', c=exp_color, label=exp_name)        
 
-        (pf_runtime_regular, pf_bound_regular, regular_pareto_mf_vals) = pareto_frontier(Xs=all_permutedBlockDiag_parallel_runtimes, Ys=all_permutedBlockDiag_parallel_bounds, maxX=False, maxY=True, ExtraInfo=permutedBlockDiag_MFvals)
-        plt.plot(pf_runtime_regular, pf_bound_regular, '*--', c='g', label='Regular LDPC Matrix')
+            print exp_name, 'parallel pareto_mf_vals:'
+            print set(pareto_mf_vals)
+            all_pareto_vals.extend(pareto_mf_vals)
 
-        print 'orig_pareto_mf_vals'
-        print orig_pareto_mf_vals
-
-        print 'regular_pareto_mf_vals'
-        print regular_pareto_mf_vals
-
-        print 'all pareto mf vals:'
-        print set(orig_pareto_mf_vals + regular_pareto_mf_vals)
-
-        #fig = plt.figure()
-        #ax = plt.subplot(111)
-        #ax.plot(pf_runtime_orig, pf_bound_orig, '--r+', label='IID LDPC Matrix', markersize=15)
-#
-        #ax.plot(pf_runtime_regular, pf_bound_regular, '--r2', label='Regular LDPC Matrix', markersize=15)
+        print 'all parallel pareto mf vals:'
+        print set(all_pareto_vals)
 
         plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='Ground Truth ln(Set Size)') 
         plt.xlabel('Parallel Runtime (units: runtime without parity constraints)', fontsize=16)
@@ -697,125 +625,131 @@ if __name__=="__main__":
 
         plt.show()
 
+    ################ PLOT SEQUENTIAL BOUNDS ################
 
-        #Plot pareto frontier of sequential bounds
-        if PLOT_ACTUAL_POINTS:
-            plt.scatter(all_original_sequential_runtimes, all_original_sequential_bounds, marker='+', c='b')
-            #plt.scatter(all_blockDiag_sequential_runtimes, all_blockDiag_sequential_bounds, marker='+', c='r')
-            plt.scatter(all_permutedBlockDiag_sequential_runtimes, all_permutedBlockDiag_sequential_bounds, marker='+', c='g')
-            plt.xlabel('sequential runtime (units: mean unperturbed runtime on machine averaged over 10 trials)')
-            plt.ylabel('Lower Bound on ln(Set Size)')
-            plt.legend()        
+    #Plot pareto frontier of sequential bounds
+    if PLOT_ACTUAL_POINTS:
+        for exp_name, filebase, exp_color in EXPERIMENTS_TO_PLOT:
+            plt.scatter(all_exp_data[exp_name]['all_sequential_runtimes'], all_exp_data[exp_name]['all_sequential_bounds'], marker='+', c=exp_color)
+        plt.xlabel('sequential runtime (units: median unperturbed runtime on machine over 100 trials)')
+        plt.ylabel('Lower Bound on ln(Set Size)')
+        plt.legend()
+    #    plt.show()
+    if PLOT_PARETO_FRONTIER:
+        all_pareto_vals = []
+        for exp_name, filebase, exp_color in EXPERIMENTS_TO_PLOT:
+            (pf_runtime, pf_bound, pareto_mf_vals) =\
+              pareto_frontier(Xs=all_exp_data[exp_name]['all_sequential_runtimes'], Ys=all_exp_data[exp_name]['all_sequential_bounds'],\
+              maxX=False, maxY=True, ExtraInfo=all_exp_data[exp_name]['sequential_M_F'])
 
-        (pf_runtime_orig_sequential, pf_bound_orig_sequential, MF_pairs_orig) = pareto_frontier(Xs=all_original_sequential_runtimes, Ys=all_original_sequential_bounds, maxX=False, maxY=True, ExtraInfo=sequential_orig_M_F)
-        plt.plot(pf_runtime_orig_sequential, pf_bound_orig_sequential, '*--', c='b', label='IID LDPC Matrix')        
+            plt.plot(pf_runtime, pf_bound, '*--', c=exp_color, label=exp_name)        
 
+            print exp_name, 'sequential pareto_mf_vals:'
+            print pareto_mf_vals
+            all_pareto_vals.extend(pareto_mf_vals)
 
-        (pf_runtime_regular_sequential, pf_bound_regular_sequential, MF_pairs_regular) = pareto_frontier(Xs=all_permutedBlockDiag_sequential_runtimes, Ys=all_permutedBlockDiag_sequential_bounds, maxX=False, maxY=True, ExtraInfo=sequential_permutedBlockDiag_M_F)
-        plt.plot(pf_runtime_regular_sequential, pf_bound_regular_sequential, '*--', c='g', label='Regular LDPC Matrix')
+        print 'all sequential pareto mf vals:'
+        print set(all_pareto_vals)
 
         plt.axhline(y=math.log(2)*log_2_Z[PROBLEM_NAME], color='y', label='Ground Truth ln(Set Size)') 
-        plt.xlabel('Sequential Runtime (units: runtime without parity constraints)', fontsize=14)
-        plt.ylabel('Lower Bound on ln(Set Size)', fontsize=14)
+        plt.xlabel('Sequential Runtime (units: runtime without parity constraints)', fontsize=16)
+        plt.ylabel('Lower Bound on ln(Set Size)', fontsize=16)
         plt.title('Lower Bounds on Set Size of Model %s' % PROBLEM_NAME, fontsize=20)
-        plt.legend(fontsize=14)    
+        plt.legend(fontsize=15)    
         #make the font bigger
         matplotlib.rcParams.update({'font.size': 14})        
 
         plt.grid(True)
-
         plt.show()
 
-        #Compare computational and statistical efficiency of regular vs. original matrix construction in the sequential setting
-        runtimeRatios_origParetoFrontier = []
-        satFracRatios_origParetoFrontier = []
+    exit(-1)
 
-        for idx in range(len(MF_pairs_orig)):
-            cur_m_val = MF_pairs_orig[idx][0]
-            cur_f_val = MF_pairs_orig[idx][1]
-            cur_runtimeRatio = pf_runtime_orig_sequential[idx] / np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
-            cur_satFracRatio = num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]/num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
-            runtimeRatios_origParetoFrontier.append(cur_runtimeRatio)
-            satFracRatios_origParetoFrontier.append(cur_satFracRatio)
-            assert(pf_runtime_orig_sequential[idx] == np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)]))
-            print '-'*80
-            print 'pareto point for original iid construction:'
-            print cur_m_val, cur_f_val
-            print 'old frac sat:', num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
-            print 'new frac sat:', num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
-            print 'old runtime:',np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])
-            print 'old runtimes:',all_runtimes_dict_orig[(cur_f_val, cur_m_val)]
-            print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
-            print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
-            print 'new runtimes:', all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)]
-            print 'cur_runtimeRatio:', cur_runtimeRatio
-            print 'cur_satFracRatio:', cur_satFracRatio
+    #Compare computational and statistical efficiency of regular vs. original matrix construction in the sequential setting
+    runtimeRatios_origParetoFrontier = []
+    satFracRatios_origParetoFrontier = []
 
-        plt.plot(runtimeRatios_origParetoFrontier, '*--', c='g', label='original runtime/new runtime')
-        plt.plot(satFracRatios_origParetoFrontier, '*--', c='b', label='new frac SAT/original frac SAT')
+    for idx in range(len(MF_pairs_orig)):
+        cur_m_val = MF_pairs_orig[idx][0]
+        cur_f_val = MF_pairs_orig[idx][1]
+        cur_runtimeRatio = pf_runtime_orig_sequential[idx] / np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
+        cur_satFracRatio = num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]/num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
+        runtimeRatios_origParetoFrontier.append(cur_runtimeRatio)
+        satFracRatios_origParetoFrontier.append(cur_satFracRatio)
+        assert(pf_runtime_orig_sequential[idx] == np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)]))
+        print '-'*80
+        print 'pareto point for original iid construction:'
+        print cur_m_val, cur_f_val
+        print 'old frac sat:', num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
+        print 'new frac sat:', num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
+        print 'old runtime:',np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])
+        print 'old runtimes:',all_runtimes_dict_orig[(cur_f_val, cur_m_val)]
+        print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
+        print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
+        print 'new runtimes:', all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)]
+        print 'cur_runtimeRatio:', cur_runtimeRatio
+        print 'cur_satFracRatio:', cur_satFracRatio
 
-        plt.xlabel('meaningless (arbitrary pareto points)', fontsize=14)
-        plt.ylabel('ratio, greater than 1 implies improvement', fontsize=14)
-        plt.title('Computational and Statistical efficiency comparison at pareto points of original method %s' % PROBLEM_NAME, fontsize=20)
-        plt.legend(fontsize=12)    
-        #make the font bigger
-        matplotlib.rcParams.update({'font.size': 10})        
+    plt.plot(runtimeRatios_origParetoFrontier, '*--', c='g', label='original runtime/new runtime')
+    plt.plot(satFracRatios_origParetoFrontier, '*--', c='b', label='new frac SAT/original frac SAT')
 
-        plt.grid(True)
+    plt.xlabel('meaningless (arbitrary pareto points)', fontsize=14)
+    plt.ylabel('ratio, greater than 1 implies improvement', fontsize=14)
+    plt.title('Computational and Statistical efficiency comparison at pareto points of original method %s' % PROBLEM_NAME, fontsize=20)
+    plt.legend(fontsize=12)    
+    #make the font bigger
+    matplotlib.rcParams.update({'font.size': 10})        
 
-        plt.show()
+    plt.grid(True)
+
+    plt.show()
 
 
-        runtimeRatios_newParetoFrontier = []
-        satFracRatios_newParetoFrontier = []
-        for idx in range(len(MF_pairs_regular)):
-            cur_m_val = MF_pairs_regular[idx][0]
-            cur_f_val = MF_pairs_regular[idx][1]
-            cur_runtimeRatio = np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])/pf_runtime_regular_sequential[idx]
-            cur_satFracRatio = num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]/num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
-            print '-'*80
-            print 'pareto point for regular construction:'            
-            print cur_m_val, cur_f_val
-            print 'old frac sat:', num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
-            print 'new frac sat:', num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
-            print 'old runtime:',np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])
-            print 'old runtimes:',all_runtimes_dict_orig[(cur_f_val, cur_m_val)]
-            print 'new runtime:',pf_runtime_regular_sequential[idx]
-            print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
-            print 'new runtimes:', all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)]
-            print 'cur_runtimeRatio:', cur_runtimeRatio
-            print 'cur_satFracRatio:', cur_satFracRatio
+    runtimeRatios_newParetoFrontier = []
+    satFracRatios_newParetoFrontier = []
+    for idx in range(len(MF_pairs_regular)):
+        cur_m_val = MF_pairs_regular[idx][0]
+        cur_f_val = MF_pairs_regular[idx][1]
+        cur_runtimeRatio = np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])/pf_runtime_regular_sequential[idx]
+        cur_satFracRatio = num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]/num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
+        print '-'*80
+        print 'pareto point for regular construction:'            
+        print cur_m_val, cur_f_val
+        print 'old frac sat:', num_SAT_orig[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]            
+        print 'new frac sat:', num_SAT_permutedBlockDiag[(sorted_f_vals.index(cur_f_val), sorted_m_vals.index(cur_m_val))]
+        print 'old runtime:',np.sum(all_runtimes_dict_orig[(cur_f_val, cur_m_val)])
+        print 'old runtimes:',all_runtimes_dict_orig[(cur_f_val, cur_m_val)]
+        print 'new runtime:',pf_runtime_regular_sequential[idx]
+        print 'new runtime:',np.sum(all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)])
+        print 'new runtimes:', all_runtimes_dict_permutedBlockDiag[(cur_f_val, cur_m_val)]
+        print 'cur_runtimeRatio:', cur_runtimeRatio
+        print 'cur_satFracRatio:', cur_satFracRatio
 
-            runtimeRatios_newParetoFrontier.append(cur_runtimeRatio)
-            satFracRatios_newParetoFrontier.append(cur_satFracRatio)
+        runtimeRatios_newParetoFrontier.append(cur_runtimeRatio)
+        satFracRatios_newParetoFrontier.append(cur_satFracRatio)
 
-        plt.plot(runtimeRatios_newParetoFrontier, '*--', c='g', label='original runtime/new runtime')
-        plt.plot(satFracRatios_newParetoFrontier, '*--', c='b', label='new frac SAT/original frac SAT')
+    plt.plot(runtimeRatios_newParetoFrontier, '*--', c='g', label='original runtime/new runtime')
+    plt.plot(satFracRatios_newParetoFrontier, '*--', c='b', label='new frac SAT/original frac SAT')
 
-        plt.xlabel('meaningless (arbitrary pareto points)', fontsize=14)
-        plt.ylabel('ratio, greater than 1 implies improvement', fontsize=14)
-        plt.title('Computational and Statistical efficiency comparison at pareto points of new method %s' % PROBLEM_NAME, fontsize=20)
-        plt.legend(fontsize=12)    
-        #make the font bigger
-        matplotlib.rcParams.update({'font.size': 10})        
+    plt.xlabel('meaningless (arbitrary pareto points)', fontsize=14)
+    plt.ylabel('ratio, greater than 1 implies improvement', fontsize=14)
+    plt.title('Computational and Statistical efficiency comparison at pareto points of new method %s' % PROBLEM_NAME, fontsize=20)
+    plt.legend(fontsize=12)    
+    #make the font bigger
+    matplotlib.rcParams.update({'font.size': 10})        
 
-        plt.grid(True)
+    plt.grid(True)
 
-        plt.show()
+    plt.show()
 
-        
+    
 
-        print 'number of original sequential bounds', len(all_original_sequential_bounds)
-        print 'number of regular sequential bounds', len(all_permutedBlockDiag_sequential_bounds)
+    print 'number of original sequential bounds', len(all_original_sequential_bounds)
+    print 'number of regular sequential bounds', len(all_permutedBlockDiag_sequential_bounds)
 
-        print 'number of original parallel bounds', len(all_original_parallel_bounds)
-        print 'number of regular parallel bounds', len(all_permutedBlockDiag_parallel_bounds)
+    print 'number of original parallel bounds', len(all_original_parallel_bounds)
+    print 'number of regular parallel bounds', len(all_permutedBlockDiag_parallel_bounds)
 
-        sleep(12)
-        #num_SAT_orig
-        #all_runtimes_dict_orig
-        #num_SAT_permutedBlockDiag
-        #all_runtimes_dict_permutedBlockDiag
+    sleep(12)
 
     PLOT_PARALLEL_CONVEX_HULLS = True
     if PLOT_PARALLEL_CONVEX_HULLS:
@@ -850,36 +784,7 @@ if __name__=="__main__":
                     textcoords='offset points', ha='right', va='bottom', color='b',
                     bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
                     arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='b'))
-        if PLOT_BLOCK_DIAG:
-            #plot convex hull of points from block diagonal method
-            blockDiag_points = np.array(zip(all_blockDiag_parallel_runtimes,all_blockDiag_parallel_bounds))
-            blockDiag_hull = ConvexHull(blockDiag_points)
-            for (idx, simplex) in enumerate(blockDiag_hull.simplices):
-                if idx == 0:
-                    plt.plot(blockDiag_points[simplex, 0], blockDiag_points[simplex, 1], '*--', c='r', label='block diagonal')
-                else:
-                    plt.plot(blockDiag_points[simplex, 0], blockDiag_points[simplex, 1], '*--', c='r')
-                if ANNOTATE_PLOTS:
-                    m_val0 = parallel_blockDiag_M_F[simplex[0]][0]
-                    f_val0 = parallel_blockDiag_M_F[simplex[0]][1]
-    
-                    m_val1 = parallel_blockDiag_M_F[simplex[1]][0]
-                    f_val1 = parallel_blockDiag_M_F[simplex[1]][1]
-                    plt.annotate(
-                        'm:%d,f:%.3f,T:%d,c:%.2f,%%c:%.2f' % (m_val0, f_val0, all_blockDiag_num_trials[(f_val0, m_val0)], \
-                            blockDiag_sat_over_trials_parallel[simplex[0]], blockDiag_satUsed_over_totalSat_parallel[simplex[0]]),
-                        xy=(blockDiag_points[simplex[0], 0], blockDiag_points[simplex[0], 1]), xytext=(-20, 20),
-                        textcoords='offset points', ha='right', va='bottom', color='r',
-                        bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-                        arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='r'))
-                    plt.annotate(
-                        'm:%d,f:%.3f,T:%d,c:%.2f,%%c:%.2f'% (m_val1, f_val1, all_blockDiag_num_trials[(f_val1, m_val1)], \
-                            blockDiag_sat_over_trials_parallel[simplex[1]], blockDiag_satUsed_over_totalSat_parallel[simplex[1]]),
-                        xy=(blockDiag_points[simplex[1], 0], blockDiag_points[simplex[1], 1]), xytext=(-20, 20),
-                        textcoords='offset points', ha='right', va='bottom', color='r',
-                        bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-                        arrowprops=dict(arrowstyle = '->', connectionstyle='arc3,rad=0', color='r'))
-        
+
         #plot convex hull of points from permuted block diagonal method
         permutedBlockDiag_points = np.array(zip(all_permutedBlockDiag_parallel_runtimes, all_permutedBlockDiag_parallel_bounds))
         permutedBlockDiag_hull = ConvexHull(permutedBlockDiag_points)

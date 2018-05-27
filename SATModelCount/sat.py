@@ -1394,19 +1394,19 @@ def test_SAT_solution_correlation(dimensions_to_cut, problem_name='c880.isc', m=
 
 
 if __name__ == '__main__':
-####    dimensions_to_cut = [i for i in range(1,37)] 
-####    test_SAT_solution_correlation(dimensions_to_cut, problem_name='c432.isc', m=36, REPEATS=0, USE_CACHE=True, VERBOSE=1)
-####    exit(0)
-    dimensions_to_cut = [i for i in range(1,50)] #+ [343]
-    test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='c2670.isc', m=51, f=.5, REPEATS=100, USE_PARITY_CONSTRAINTS=True)
-####
-####    #dimensions_to_cut = [i for i in range(1,236)]
-####    #test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='c2670.isc', m=len(dimensions_to_cut), REPEATS=100)
-####
-####    dimensions_to_cut = [i for i in range(1,5)]
-####    test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='log-2.cnf', m=len(dimensions_to_cut), REPEATS=100)
-####
-    exit(0)
+#############    dimensions_to_cut = [i for i in range(1,37)] 
+#############    test_SAT_solution_correlation(dimensions_to_cut, problem_name='c432.isc', m=36, REPEATS=0, USE_CACHE=True, VERBOSE=1)
+#############    exit(0)
+#########    dimensions_to_cut = [i for i in range(1,50)] #+ [343]
+#########    test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='c2670.isc', m=51, f=.5, REPEATS=100, USE_PARITY_CONSTRAINTS=True)
+#############
+#############    #dimensions_to_cut = [i for i in range(1,236)]
+#############    #test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='c2670.isc', m=len(dimensions_to_cut), REPEATS=100)
+#############
+#############    dimensions_to_cut = [i for i in range(1,5)]
+#############    test_halfspace_constraints(dimensions_to_cut=dimensions_to_cut, problem_name='log-2.cnf', m=len(dimensions_to_cut), REPEATS=100)
+#############
+#########    exit(0)
 
     m = 40#33
     f = 0.05#0.05
@@ -1422,7 +1422,7 @@ if __name__ == '__main__':
 #    PROBLEM_NAMES = ['sat-grid-pbl-0010.cnf']
 #    PROBLEM_NAMES = ['tire-4.cnf']
     PROBLEM_NAMES = ['c880.isc']
-    USE_MARGINALS = False
+    USE_MARGINALS = True
 
     #test_bound_c880()
     #print approximate_marginals_func(problem_name=PROBLEM_NAMES[0], repeats=100, f=1.0001/417, m=60, REGULAR=True, PERMUTE=False)
@@ -1438,7 +1438,7 @@ if __name__ == '__main__':
             restricting_hypercube = get_restricting_hypercube(approximate_marginals)
             f *= (sat.n-len(restricting_hypercube))/sat.n
             print 'f=', f, 'sat.n=', sat.n, 'len(restricting_hypercube)=', len(restricting_hypercube)
-        #exit(0)
+        exit(0)
         for i in range(REPEATS):
             print i,
             #print '#'*80
